@@ -498,6 +498,13 @@ function getAllProductionMonths($pdo, $id_target) {
             box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4) !important;
         }
         
+        .swal-dark-blue-popup .swal2-deny.swal-download-btn {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+        }
+        .swal-dark-blue-popup .swal2-deny.swal-download-btn:hover {
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4) !important;
+        }
+
         .swal-cancel-btn {
             border-radius: 8px !important;
             padding: 10px 24px !important;
@@ -963,6 +970,9 @@ function getAllProductionMonths($pdo, $id_target) {
             <div id="download-months-container"></div>
         </form>
 
+        <form id="download-form-pdf" action="proses_download_laporan_pdf.php" method="POST" target="_blank" style="display: none;">
+            <input type="hidden" name="id_target" id="download-target-id-pdf">
+            </form>
         <?php include '../../../templates/footer.php'; ?>
     </div>
     
@@ -1040,68 +1050,82 @@ function getAllProductionMonths($pdo, $id_target) {
                         cancelButton: 'swal-cancel-btn'
                     }
                 }).then((result) => {
+                    // TAHAP 1: Konfirmasi Awal (Ya/Batal)
                     if (result.isConfirmed) {
-                        // Show loading
+                        
+                        // TAHAP 2: Jika "Ya", tampilkan Pilihan Format (Excel/PDF)
                         Swal.fire({
-                            title: 'Menyiapkan laporan...',
-                            html: '<div style="margin-top: 20px;"><i class="bi bi-file-earmark-arrow-down" style="font-size: 3rem; animation: bounce 1s infinite;"></i></div>',
-                            allowOutsideClick: false,
-                            allowEscapeKey: false,
-                            showConfirmButton: false,
+                            title: 'Pilih Format Laporan',
+                            html: `Pilih format yang Anda inginkan untuk:<br><strong>"${targetName}"</strong>`,
+                            icon: 'question',
+                            showDenyButton: true,
+                            showCancelButton: true,
+                            confirmButtonText: '<i class="bi bi-file-earmark-excel-fill me-2"></i>Download Excel',
+                            denyButtonText: '<i class="bi bi-file-earmark-pdf-fill me-2"></i>Download PDF',
+                            cancelButtonText: 'Batal',
+                            // Styling untuk tombol
+                            confirmButtonColor: '#10b981', // Hijau
+                            denyButtonColor: '#ef4444',    // Merah
                             background: 'rgba(30, 60, 114, 0.95)',
                             color: '#fff',
-                            backdrop: `rgba(0,0,0,0.6)`,
-                            didOpen: () => {
-                                const style = document.createElement('style');
-                                style.innerHTML = `
-                                    @keyframes bounce {
-                                        0%, 100% { transform: translateY(0); }
-                                        50% { transform: translateY(-20px); }
-                                    }
-                                `;
-                                document.head.appendChild(style);
+                            customClass: {
+                                popup: 'swal-dark-blue-popup',
+                                confirmButton: 'swal-download-btn',
+                                denyButton: 'swal-download-btn', // Pakai class yg sama, tapi CSS akan membedakannya
+                                cancelButton: 'swal-cancel-btn'
                             }
-                        });
-                        
-                        // Populate form and submit
-                        const form = document.getElementById('download-form');
-                        const targetIdInput = document.getElementById('download-target-id');
-                        const monthsContainer = document.getElementById('download-months-container');
-                        
-                        targetIdInput.value = targetId;
-                        monthsContainer.innerHTML = '';
-                        
-                        months.forEach(month => {
-                            const input = document.createElement('input');
-                            input.type = 'hidden';
-                            input.name = 'bulan_laporan[]';
-                            input.value = month;
-                            monthsContainer.appendChild(input);
-                        });
-                        
-                        // Submit form
-                        setTimeout(() => {
-                            form.submit();
+                        }).then((formatResult) => {
                             
-                            // Close loading after short delay
-                            setTimeout(() => {
-                                Swal.close();
+                            // TAHAP 3: Eksekusi Pilihan Format
+                            
+                            // === JIKA MEMILIH EXCEL ===
+                            if (formatResult.isConfirmed) {
+                                // Ambil form Excel
+                                const formExcel = document.getElementById('download-form');
+                                const targetIdInputExcel = document.getElementById('download-target-id');
+                                const monthsContainerExcel = document.getElementById('download-months-container');
                                 
-                                // Show success message
+                                // Isi data (target_id dan semua bulan)
+                                targetIdInputExcel.value = targetId;
+                                monthsContainerExcel.innerHTML = '';
+                                months.forEach(month => {
+                                    const input = document.createElement('input');
+                                    input.type = 'hidden';
+                                    input.name = 'bulan_laporan[]';
+                                    input.value = month;
+                                    monthsContainerExcel.appendChild(input);
+                                });
+                                
+                                // Submit form Excel
+                                formExcel.submit();
+
+                            // === JIKA MEMILIH PDF ===
+                            } else if (formatResult.isDenied) {
+                                // Ambil form PDF
+                                const formPdf = document.getElementById('download-form-pdf');
+                                const targetIdInputPdf = document.getElementById('download-target-id-pdf');
+                                
+                                // Isi data (hanya target_id)
+                                targetIdInputPdf.value = targetId;
+                                
+                                // Submit form PDF
+                                formPdf.submit();
+                            }
+
+                            // Tampilkan notifikasi download (jika bukan "Batal")
+                            if (formatResult.isConfirmed || formatResult.isDenied) {
                                 Swal.fire({
                                     title: 'Berhasil!',
-                                    text: 'Laporan sedang didownload...',
+                                    text: 'Laporan sedang diproses untuk didownload...',
                                     icon: 'success',
                                     timer: 2000,
                                     showConfirmButton: false,
                                     background: 'rgba(30, 60, 114, 0.95)',
                                     color: '#fff',
-                                    customClass: {
-                                        popup: 'swal-dark-blue-popup'
-                                    }
+                                    customClass: { popup: 'swal-dark-blue-popup' }
                                 });
-                            }, 1000);
-                        }, 800);
+                            }
+                        });
                     }
                 });
             });

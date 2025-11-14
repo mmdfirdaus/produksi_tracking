@@ -436,6 +436,15 @@ $month_nav = getMonthNavigation($selected_month, $available_months);
     box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4);
 }
 
+.btn-pdf {
+            background: var(--danger-color); /* Variabel warna merah dari root */
+        }
+
+        .btn-pdf:hover {
+            background: var(--danger-color);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
+        }
+
 /* Tabs */
 .nav-tabs-custom {
     background: var(--glass-bg);
@@ -958,22 +967,37 @@ $month_nav = getMonthNavigation($selected_month, $available_months);
     <div class="download-section loading" style="animation-delay: 0.4s;">
         <div class="download-header">
             <div class="download-icon"><i class="bi bi-download"></i></div>
-            <h5 class="download-title">Download Laporan Lengkap (Excel)</h5>
+            <h5 class="download-title">Download Laporan Lengkap</h5>
         </div>
-        <form action="proses_download_laporan.php" method="post" target="_blank" class="download-form">
-            <input type="hidden" name="id_target" value="<?php echo $id_target; ?>">
-            
-            <?php foreach ($all_months_for_download as $month): ?>
-                <input type="hidden" name="bulan_laporan[]" value="<?php echo htmlspecialchars($month); ?>">
-            <?php endforeach; ?>
+
+        <div class="download-form">
             
             <div class="form-group-download">
-                <p class="mb-0" style="color: #666;">Laporan ini akan mencakup data dari semua bulan produksi (Total: <?php echo count($all_months_for_download); ?> bulan).</p>
+                <p class="mb-0" style="color: #666;">Pilih format download untuk semua data produksi (Total: <?php echo count($all_months_for_download); ?> bulan).</p>
+                
+                <form id="form-download-excel" action="proses_download_laporan.php" method="post" target="_blank" style="display: none;">
+                    <input type="hidden" name="id_target" value="<?php echo $id_target; ?>">
+                    <?php foreach ($all_months_for_download as $month): ?>
+                        <input type="hidden" name="bulan_laporan[]" value="<?php echo htmlspecialchars($month); ?>">
+                    <?php endforeach; ?>
+                </form>
+
+                <form id="form-download-pdf" action="proses_download_laporan_pdf.php" method="post" target="_blank" style="display: none;">
+                    <input type="hidden" name="id_target" value="<?php echo $id_target; ?>">
+                    </form>
             </div>
-            <button type="submit" class="btn-download" <?php echo empty($all_months_for_download) ? 'disabled' : ''; ?>>
-                <i class="bi bi-file-excel-fill"></i> Download Laporan Lengkap
-            </button>
-        </form>
+
+            <div class="button-group d-flex gap-2 justify-content-end">
+                <button type="submit" form="form-download-excel" class="btn-download" <?php echo empty($all_months_for_download) ? 'disabled' : ''; ?>>
+                    <i class="bi bi-file-excel-fill"></i> Download Excel
+                </button>
+                
+                <button type="submit" form="form-download-pdf" class="btn-download btn-pdf" <?php echo empty($all_months_for_download) ? 'disabled' : ''; ?>>
+                    <i class="bi bi-file-pdf-fill"></i> Download PDF
+                </button>
+            </div>
+
+        </div>
     </div>
     <?php endif; ?>
 

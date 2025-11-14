@@ -1030,14 +1030,21 @@ $targets = $target_stmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="modal fade" id="downloadLaporanModal" tabindex="-1" aria-labelledby="downloadLaporanModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form action="download_laporan_ongoing.php" method="post" target="_blank">
+                
                     <div class="modal-header">
                         <h5 class="modal-title" id="downloadLaporanModalLabel">Pilih Bulan Laporan</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <input type="hidden" name="id_target" id="download_id_target">
-                        
+                        <form id="form-download-excel" action="download_laporan_ongoing.php" method="post" target="_blank" style="display: none;">
+                            <input type="hidden" name="id_target" id="download_id_target_excel">
+                            <input type="hidden" name="bulan_laporan" id="download_bulan_laporan_excel">
+                        </form>
+                        <form id="form-download-pdf" action="proses_download_laporan_ongoing_pdf.php" method="post" target="_blank" style="display: none;">
+                            <input type="hidden" name="id_target" id="download_id_target_pdf">
+                            <input type="hidden" name="bulan_laporan[]" id="download_bulan_laporan_pdf">
+                        </form>
+
                         <div id="download-laporan-content">
                             <div class="text-center">
                                 <div class="spinner-border text-primary" role="status">
@@ -1048,8 +1055,11 @@ $targets = $target_stmt->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                     <div class="modal-footer" id="download-laporan-footer" style="display: none;">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-download"></i> Download
+                        <button type="submit" class="btn btn-success" id="btn-download-excel" form="form-download-excel" disabled>
+                            <i class="bi bi-file-earmark-excel"></i> Download Excel
+                        </button>
+                        <button type="submit" class="btn btn-danger" id="btn-download-pdf" form="form-download-pdf" disabled>
+                            <i class="bi bi-file-earmark-pdf"></i> Download PDF
                         </button>
                     </div>
                 </form>
@@ -1338,44 +1348,78 @@ $targets = $target_stmt->fetchAll(PDO::FETCH_ASSOC);
         if (downloadModal) {
             const modalContent = document.getElementById('download-laporan-content');
             const modalFooter = document.getElementById('download-laporan-footer');
-            const hiddenInputTargetId = document.getElementById('download_id_target');
+            
+            // [BARU] Dapatkan referensi ke input/button baru
+            const hiddenTargetExcel = document.getElementById('download_id_target_excel');
+            const hiddenTargetPdf = document.getElementById('download_id_target_pdf');
+            const hiddenBulanExcel = document.getElementById('download_bulan_laporan_excel');
+            const hiddenBulanPdf = document.getElementById('download_bulan_laporan_pdf');
+            const btnExcel = document.getElementById('btn-download-excel');
+            const btnPdf = document.getElementById('btn-download-pdf');
 
             downloadModal.addEventListener('show.bs.modal', function(event) {
                 const button = event.relatedTarget;
                 const targetId = button.getAttribute('data-target-id'); 
                 
-                hiddenInputTargetId.value = targetId;
+                // [DIUBAH] Set ID target untuk KEDUA form
+                hiddenTargetExcel.value = targetId;
+                hiddenTargetPdf.value = targetId;
+
+                // Reset state
                 modalContent.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-                modalFooter.style.display = 'none';
+                modalFooter.style.display = 'none'; // Sembunyikan footer saat loading
+                btnExcel.disabled = true; // Matikan tombol
+                btnPdf.disabled = true;  // Matikan tombol
+                hiddenBulanExcel.value = ''; // Kosongkan value
+                hiddenBulanPdf.value = '';   // Kosongkan value
 
                 fetch(`api_get_months.php?id_target=${targetId}`)
                     .then(response => response.json())
                     .then(data => {
+                        modalFooter.style.display = 'flex'; // Tampilkan footer (untuk tombol Tutup/Download)
+
                         if (data.error) {
                             modalContent.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
                         } else if (data.months.length === 0) {
                             modalContent.innerHTML = '<div class="alert alert-warning">Belum ada data laporan harian untuk target ini.</div>';
-                            modalFooter.style.display = 'flex';
-                            modalFooter.querySelector('button[type="submit"]').style.display = 'none';
                         } else {
                             let optionsHtml = '<option value="">-- Pilih Bulan --</option>';
                             data.months.forEach(monthData => {
                                 optionsHtml += `<option value="${monthData.value}">${monthData.name}</option>`;
                             });
                             
+                            // [BARU] Buat fungsi onchange untuk mengupdate form
+                            // Kita letakkan di 'onchange' langsung di tag select
+                            const onMonthChange = `
+                                var month = this.value;
+                                var btnExcel = document.getElementById('btn-download-excel');
+                                var btnPdf = document.getElementById('btn-download-pdf');
+                                // Update value di kedua form tersembunyi
+                                document.getElementById('download_bulan_laporan_excel').value = month;
+                                document.getElementById('download_bulan_laporan_pdf').value = month;
+                                
+                                // Aktifkan/Matikan tombol berdasarkan pilihan
+                                if (month) {
+                                    btnExcel.disabled = false;
+                                    btnPdf.disabled = false;
+                                } else {
+                                    btnExcel.disabled = true;
+                                    btnPdf.disabled = true;
+                                }
+                            `;
+
+                            // [DIUBAH] Tambahkan onchange ke tag select
                             modalContent.innerHTML = `
                                 <div class="mb-3">
                                     <label class="form-label">Bulan Produksi</label>
-                                    <select class="form-select" name="bulan_laporan" required>
+                                    <select class="form-select" onchange="${onMonthChange}" required>
                                         ${optionsHtml}
                                     </select>
                                 </div>`;
-                            
-                            modalFooter.style.display = 'flex';
-                            modalFooter.querySelector('button[type="submit"]').style.display = 'inline-block';
                         }
                     })
                     .catch(err => {
+                        modalFooter.style.display = 'flex';
                         modalContent.innerHTML = `<div class="alert alert-danger">Gagal memuat data bulan.</div>`;
                         console.error("Fetch error:", err);
                     });
