@@ -1397,31 +1397,40 @@ $base_url_uploads = $base_url . '/uploads/';
 </div>
 
 <div class="modal fade" id="downloadLaporanModal" tabindex="-1" aria-labelledby="downloadLaporanModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form action="manajemen_laporan/download_laporan_ongoing.php" method="post" target="_blank">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="downloadLaporanModalLabel"><i class="bi bi-download me-2"></i>Pilih Bulan Laporan</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" name="id_target" id="download_id_target">
-                    <div id="download-laporan-content">
-                        <div class="text-center">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
+            <div class="modal-header">
+                <h5 class="modal-title" id="downloadLaporanModalLabel"><i class="bi bi-download me-2"></i>Download Laporan On-Going</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="download_id_target_js_helper">
+                <div id="download-laporan-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer" id="download-laporan-footer" style="display: none;">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-download"></i> Download
+            </div>
+            <div class="modal-footer d-grid gap-2" id="download-laporan-footer" style="display: none;">
+                <form action="manajemen_laporan/download_laporan_ongoing.php" method="post" target="_blank" class="m-0">
+                    <input type="hidden" name="id_target" id="excel_id_target">
+                    <input type="hidden" name="bulan_laporan" id="excel_bulan_laporan">
+                    <button type="submit" class="btn btn-success btn-modern w-100" disabled>
+                        <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i> Download Excel
                     </button>
-                </div>
-            </form>
-        </div>
+                </form>
+                
+                <form action="manajemen_laporan/proses_download_laporan_ongoing_pdf.php" method="post" target="_blank" class="m-0">
+                    <input type="hidden" name="id_target" id="pdf_id_target">
+                    <input type="hidden" name="bulan_laporan[]" id="pdf_bulan_laporan">
+                    <button type="submit" class="btn btn-danger btn-modern w-100" disabled>
+                        <i class="bi bi-file-earmark-pdf-fill me-2"></i> Download PDF
+                    </button>
+                </form>
+            </div>
+            </div>
     </div>
 </div>
 
@@ -1476,15 +1485,28 @@ document.addEventListener('DOMContentLoaded', function() {
     if (downloadModal) {
         const modalContent = document.getElementById('download-laporan-content');
         const modalFooter = document.getElementById('download-laporan-footer');
-        const hiddenInputTargetId = document.getElementById('download_id_target');
+        
+        // [BARU] Ambil semua input yang relevan
+        const excelTargetInput = document.getElementById('excel_id_target');
+        const pdfTargetInput = document.getElementById('pdf_id_target');
+        const excelBulanInput = document.getElementById('excel_bulan_laporan');
+        const pdfBulanInput = document.getElementById('pdf_bulan_laporan');
+        const allSubmitButtons = modalFooter.querySelectorAll('button[type="submit"]');
 
         downloadModal.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
             const targetId = button.getAttribute('data-target-id'); 
             
-            hiddenInputTargetId.value = targetId;
+            // 1. Set ID Target di KEDUA form
+            excelTargetInput.value = targetId;
+            pdfTargetInput.value = targetId;
+
+            // 2. Reset modal ke status loading
             modalContent.innerHTML = '<div class="text-center"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-            modalFooter.style.display = 'none';
+            modalFooter.style.display = 'none'; // Sembunyikan footer
+            allSubmitButtons.forEach(btn => btn.disabled = true); // Disable tombol
+            excelBulanInput.value = ''; // Kosongkan bulan
+            pdfBulanInput.value = ''; // Kosongkan bulan
 
             fetch(`manajemen_laporan/api_get_months.php?id_target=${targetId}`)
                 .then(response => response.json())
@@ -1493,29 +1515,49 @@ document.addEventListener('DOMContentLoaded', function() {
                         modalContent.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
                     } else if (data.months.length === 0) {
                         modalContent.innerHTML = '<div class="alert alert-warning">Belum ada data laporan harian untuk target ini.</div>';
-                        modalFooter.style.display = 'flex';
-                        modalFooter.querySelector('button[type="submit"]').style.display = 'none';
                     } else {
                         let optionsHtml = '<option value="">-- Pilih Bulan --</option>';
                         data.months.forEach(monthData => {
                             optionsHtml += `<option value="${monthData.value}">${monthData.name}</option>`;
                         });
                         
+                        // 3. Buat HTML select dengan ID agar bisa dibaca JS
                         modalContent.innerHTML = `
                             <div class="mb-3">
-                                <label class="form-label">Bulan Produksi</label>
-                                <select class="form-select" name="bulan_laporan" required>
+                                <label class="form-label fw-bold">Pilih Bulan Laporan</label>
+                                <select class="form-select" id="modal_bulan_select" required>
                                     ${optionsHtml}
                                 </select>
+                                <div class="form-text">Anda harus memilih bulan untuk mengaktifkan tombol download.</div>
                             </div>`;
                         
-                        modalFooter.style.display = 'flex';
-                        modalFooter.querySelector('button[type="submit"]').style.display = 'inline-block';
+                        // 4. Tambahkan event listener ke select yang baru dibuat
+                        const monthSelect = document.getElementById('modal_bulan_select');
+                        if (monthSelect) {
+                            monthSelect.addEventListener('change', function() {
+                                const selectedMonth = this.value;
+                                
+                                // 5. Sinkronkan bulan terpilih ke KEDUA form
+                                excelBulanInput.value = selectedMonth;
+                                pdfBulanInput.value = selectedMonth;
+
+                                // 6. Aktifkan/Nonaktifkan tombol berdasarkan pilihan
+                                if (selectedMonth) {
+                                    allSubmitButtons.forEach(btn => btn.disabled = false);
+                                } else {
+                                    allSubmitButtons.forEach(btn => btn.disabled = true);
+                                }
+                            });
+                        }
                     }
                 })
                 .catch(err => {
                     modalContent.innerHTML = `<div class="alert alert-danger">Gagal memuat data bulan. Silakan coba lagi.</div>`;
                     console.error("Fetch error:", err);
+                })
+                .finally(() => {
+                    // 7. Tampilkan footer (yang berisi tombol) setelah fetch selesai
+                    modalFooter.style.display = 'grid'; // Gunakan 'grid' sesuai HTML baru kita
                 });
         });
     }

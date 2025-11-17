@@ -931,31 +931,48 @@ $month_nav = getMonthNavigation($selected_month, $available_months);
         </div>
     </div>
 
-    <!-- Download Section -->
     <?php if (!empty($available_months)): ?>
     <div class="download-section loading" style="animation-delay: 0.4s;">
         <div class="download-header">
             <div class="download-icon"><i class="bi bi-download"></i></div>
-            <h5 class="download-title">Download Laporan Ongoing (Excel)</h5>
+            <h5 class="download-title">Download Laporan On-Going</h5>
         </div>
-        <form action="download_laporan_ongoing_user.php" method="post" target="_blank" class="download-form">
-            <input type="hidden" name="id_target" value="<?php echo $id_target; ?>">
-            <div class="form-group-download">
-                <label class="form-label-download">Pilih Bulan Laporan</label>
-                <select name="bulan_laporan" class="form-select-download" required>
-                    <option value="">-- Pilih Bulan --</option>
-                    <?php foreach ($available_months as $month): ?>
-                        <?php $month_text = date('F Y', strtotime($month['bulan_tahun'] . '-01')); ?>
-                        <option value="<?php echo htmlspecialchars($month['bulan_tahun']); ?>">
-                            <?php echo htmlspecialchars($month_text); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <button type="submit" class="btn-download">
-                <i class="bi bi-file-excel"></i> Download
-            </button>
-        </form>
+        
+        <div class="form-group-download mb-3">
+            <label class="form-label-download">Pilih Bulan Laporan</label>
+            <select id="download-bulan-select" class="form-select-download" required>
+                <option value="">-- Pilih Bulan --</option>
+                <?php foreach ($available_months as $month): ?>
+                    <?php $month_text = date('F Y', strtotime($month['bulan_tahun'] . '-01')); ?>
+                    <option value="<?php echo htmlspecialchars($month['bulan_tahun']); ?>">
+                        <?php echo htmlspecialchars($month_text); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2">
+            
+            <form action="download_laporan_ongoing_user.php" method="post" target="_blank" class="m-0">
+                <input type="hidden" name="id_target" value="<?php echo $id_target; ?>">
+                <input type="hidden" name="bulan_laporan" id="excel-bulan-input">
+                
+                <button type="submit" class="btn-download" id="excel-download-btn" disabled>
+                    <i class="bi bi-file-earmark-spreadsheet-fill"></i> Download Excel
+                </button>
+            </form>
+
+            <form action="proses_download_laporan_ongoing_pdf.php" method="post" target="_blank" class="m-0">
+                <input type="hidden" name="id_target" value="<?php echo $id_target; ?>">
+                <input type="hidden" name="bulan_laporan[]" id="pdf-bulan-input">
+                
+                <button type="submit" class="btn btn-danger" id="pdf-download-btn" disabled>
+                    <i class="bi bi-file-earmark-pdf-fill"></i> Download PDF
+                </button>
+            </form>
+
+        </div>
+
     </div>
     <?php endif; ?>
 
@@ -1295,6 +1312,32 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle hash for tab switching
     if (window.location.hash === '#detail') {
         switchTab('detail');
+    }
+
+    // [KODE BARU UNTUK DOWNLOAD SECTION]
+    const bulanSelect = document.getElementById('download-bulan-select');
+    if (bulanSelect) {
+        const excelBulanInput = document.getElementById('excel-bulan-input');
+        const pdfBulanInput = document.getElementById('pdf-bulan-input');
+        const excelBtn = document.getElementById('excel-download-btn');
+        const pdfBtn = document.getElementById('pdf-download-btn');
+
+        bulanSelect.addEventListener('change', function() {
+            const selectedValue = this.value;
+            
+            // Isi value ke kedua hidden input
+            excelBulanInput.value = selectedValue;
+            pdfBulanInput.value = selectedValue;
+
+            // Aktifkan/nonaktifkan tombol
+            if (selectedValue) {
+                excelBtn.disabled = false;
+                pdfBtn.disabled = false;
+            } else {
+                excelBtn.disabled = true;
+                pdfBtn.disabled = true;
+            }
+        });
     }
 });
 </script>

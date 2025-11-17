@@ -1095,27 +1095,28 @@ try {
                                     <span class="duration-badge"><?php echo $durasi . ' Hari'; ?></span>
                                 </td>
                                 <td class="text-center">
-                                    <div class="d-flex gap-2 justify-content-center">
-                                        <a href="rincian_laporan.php?id_target=<?php echo $target['id_target']; ?>" 
-                                           class="btn btn-sm btn-primary" 
-                                           title="Lihat Rincian">
-                                           <i class="bi bi-search"></i>
-                                        </a>
-                                        
-                                        <form action="proses_download_laporan.php" method="POST" target="_blank" class="m-0">
-                                            <input type="hidden" name="id_target" value="<?php echo $target['id_target']; ?>">
-                                            <?php
-                                                $all_months = getAllProductionMonths($pdo, $target['id_target']);
-                                                foreach ($all_months as $month) {
-                                                    echo '<input type="hidden" name="bulan_laporan[]" value="' . htmlspecialchars($month) . '">';
-                                                }
-                                            ?>
-                                            <button type_submit" class="btn btn-sm download-btn" title="Download Laporan Lengkap" <?php echo empty($all_months) ? 'disabled' : ''; ?>>
-                                                <i class="bi bi-download"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
+                            <div class="d-flex gap-2 justify-content-center">
+                                <a href="rincian_laporan.php?id_target=<?php echo $target['id_target']; ?>" 
+                                   class="btn btn-sm btn-primary" 
+                                   title="Lihat Rincian">
+                                    <i class="bi bi-search"></i>
+                                </a>
+
+                                <button type="button" 
+                                        class="btn btn-sm btn-success download-options-trigger" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#downloadOptionsModal"
+                                        data-id-target="<?php echo $target['id_target']; ?>"
+                                        data-nama-target="<?php echo htmlspecialchars($target['nama_permintaan']); ?>"
+                                        data-months='<?php 
+                                            $all_months = getAllProductionMonths($pdo, $target['id_target']);
+                                            echo json_encode($all_months);
+                                        ?>'
+                                        title="Opsi Download">
+                                    <i class="bi bi-download"></i>
+                                </button>
+                            </div>
+                        </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -1152,23 +1153,24 @@ try {
                             </div>
                         </div>
                         <div class="d-grid gap-2">
-                            <a href="rincian_laporan.php?id_target=<?php echo $target['id_target']; ?>" class="detail-btn">
-                                <i class="bi bi-search"></i> Lihat Rincian
-                            </a>
-                        
-                            <form action="proses_download_laporan.php" method="POST" target="_blank" class="m-0">
-                                <input type="hidden" name="id_target" value="<?php echo $target['id_target']; ?>">
-                                <?php
-                                    $all_months = getAllProductionMonths($pdo, $target['id_target']);
-                                    foreach ($all_months as $month) {
-                                        echo '<input type="hidden" name="bulan_laporan[]" value="' . htmlspecialchars($month) . '">';
-                                    }
-                                ?>
-                                <button type="submit" class="download-btn" <?php echo empty($all_months) ? 'disabled' : ''; ?>>
-                                    <i class="bi bi-download"></i> Download Laporan
+                                <a href="rincian_laporan.php?id_target=<?php echo $target['id_target']; ?>" class="detail-btn">
+                                    <i class="bi bi-search"></i> Lihat Rincian
+                                </a>
+                                
+                                <button type="button" 
+                                        class="download-btn download-options-trigger" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#downloadOptionsModal"
+                                        data-id-target="<?php echo $target['id_target']; ?>"
+                                        data-nama-target="<?php echo htmlspecialchars($target['nama_permintaan']); ?>"
+                                        data-months='<?php 
+                                            $all_months = getAllProductionMonths($pdo, $target['id_target']);
+                                            echo json_encode($all_months);
+                                        ?>'
+                                        <?php echo empty($all_months) ? 'disabled' : ''; ?>>
+                                    <i class="bi bi-download"></i> Opsi Download
                                 </button>
-                            </form>
-                        </div>
+                            </div>
                     </div>
                     <?php endforeach; ?>
                 </div>
@@ -1232,6 +1234,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ============================================
+    // LOGIKA UNTUK MODAL OPSI DOWNLOAD (BARU)
+    // ============================================
+    const downloadOptionsModal = document.getElementById('downloadOptionsModal');
+    if (downloadOptionsModal) {
+        
+        downloadOptionsModal.addEventListener('show.bs.modal', function (event) {
+            // Dapatkan tombol yang di-klik
+            const button = event.relatedTarget;
+            
+            // Ambil data dari atribut data-*
+            const idTarget = button.getAttribute('data-id-target');
+            const namaTarget = button.getAttribute('data-nama-target');
+            const monthsJson = button.getAttribute('data-months');
+            const months = JSON.parse(monthsJson || '[]');
+
+            // 1. Set nama target di modal body
+            const modalNamaTarget = downloadOptionsModal.querySelector('#modal-nama-target');
+            modalNamaTarget.textContent = namaTarget;
+
+            // 2. Set ID Target untuk form PDF
+            const pdfInput = downloadOptionsModal.querySelector('#modal-pdf-id-target');
+            pdfInput.value = idTarget;
+
+            // 3. Set ID Target untuk form Excel
+            const excelInput = downloadOptionsModal.querySelector('#modal-excel-id-target');
+            excelInput.value = idTarget;
+
+            // 4. Buat hidden input untuk bulan (form Excel)
+            const monthsContainer = downloadOptionsModal.querySelector('#modal-excel-months-container');
+            monthsContainer.innerHTML = ''; // Kosongkan dulu
+            
+            months.forEach(month => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'bulan_laporan[]';
+                input.value = month;
+                monthsContainer.appendChild(input);
+            });
+
+            // 5. Nonaktifkan tombol Excel jika tidak ada bulan
+            const excelButton = downloadOptionsModal.querySelector('#modal-excel-button');
+            if (months.length === 0) {
+                excelButton.setAttribute('disabled', 'true');
+                excelButton.title = "Tidak ada data bulanan untuk didownload";
+            } else {
+                excelButton.removeAttribute('disabled');
+                excelButton.title = "Download Laporan Lengkap Bulanan";
+            }
+        });
+    }
+
     if (tableBtn) {
         tableBtn.addEventListener('click', () => setView('table'));
     }
@@ -1258,5 +1312,37 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<div class="modal fade" id="downloadOptionsModal" tabindex="-1" aria-labelledby="downloadOptionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; background: var(--glass-bg); backdrop-filter: blur(20px);">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.2);">
+                <h5 class="modal-title" id="downloadOptionsModalLabel">Opsi Download</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-dark">Pilih format laporan untuk: <br><strong id="modal-nama-target" class="text-primary">...</strong></p>
+                
+                <div class="d-grid gap-3">
+                    <form action="proses_download_laporan.php" method="POST" target="_blank" class="m-0">
+                        <input type="hidden" name="id_target" id="modal-excel-id-target" value="">
+                        <div id="modal-excel-months-container"></div>
+                        
+                        <button type="submit" class="btn btn-success w-100" id="modal-excel-button" title="Download Laporan Lengkap Bulanan">
+                            <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i> Download Laporan Lengkap
+                        </button>
+                    </form>
+
+                    <form action="proses_download_laporan_pdf.php" method="POST" target="_blank" class="m-0">
+                        <input type="hidden" name="id_target" id="modal-pdf-id-target" value="">
+                        <button type="submit" class="btn btn-danger w-100" title="Download Laporan Selesai PDF">
+                            <i class="bi bi-file-earmark-pdf-fill me-2"></i> Download PDF
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <?php include_once '../../../templates/footer.php'; ?>

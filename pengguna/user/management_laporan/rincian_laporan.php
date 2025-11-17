@@ -926,10 +926,16 @@ $month_nav = getMonthNavigation($selected_month, $available_months);
                     <?php echo htmlspecialchars($header_info['nama_permintaan']); ?>
                 </p>
             </div>
-            <a href="laporan_detail.php?id_barang=<?php echo $header_info['id_barang']; ?>" class="btn-back-custom">
-                <i class="bi bi-arrow-left"></i> Kembali ke Laporan
-            </a>
-        </div>
+            
+            <div class="d-flex flex-wrap gap-2">
+                <a href="laporan_detail.php?id_barang=<?php echo $header_info['id_barang']; ?>" class="btn-back-custom">
+                    <i class="bi bi-arrow-left"></i> Kembali
+                </a>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#downloadOptionsModal">
+                    <i class="bi bi-download"></i> Opsi Download
+                </button>
+            </div>
+            </div>
     </div>
 
     <div class="stats-container loading" style="animation-delay: 0.2s;">
@@ -955,28 +961,7 @@ $month_nav = getMonthNavigation($selected_month, $available_months);
         </div>
     </div>
 
-    <?php if (!empty($all_months_for_download)): ?>
-    <div class="download-section loading" style="animation-delay: 0.4s;">
-        <div class="download-header">
-            <div class="download-icon"><i class="bi bi-download"></i></div>
-            <h5 class="download-title">Download Laporan Lengkap (Excel)</h5>
-        </div>
-        <form action="proses_download_laporan.php" method="post" target="_blank" class="download-form">
-            <input type="hidden" name="id_target" value="<?php echo $id_target; ?>">
-            
-            <?php foreach ($all_months_for_download as $month): ?>
-                <input type="hidden" name="bulan_laporan[]" value="<?php echo htmlspecialchars($month); ?>">
-            <?php endforeach; ?>
-            
-            <div class="form-group-download">
-                <p class="mb-0" style="color: #666;">Laporan ini akan mencakup data dari semua bulan produksi (Total: <?php echo count($all_months_for_download); ?> bulan).</p>
-            </div>
-            <button type="submit" class="btn-download" <?php echo empty($all_months_for_download) ? 'disabled' : ''; ?>>
-                <i class="bi bi-file-excel-fill"></i> Download Laporan Lengkap
-            </button>
-        </form>
-    </div>
-    <?php endif; ?>
+    
 
     <div class="nav-tabs-custom loading" style="animation-delay: 0.6s;">
         <button class="nav-link-custom active" onclick="switchTab('ringkas')">
@@ -1309,5 +1294,46 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<div class="modal fade" id="downloadOptionsModal" tabindex="-1" aria-labelledby="downloadOptionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px; background: var(--glass-bg); backdrop-filter: blur(20px);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--glass-border);">
+                <h5 class="modal-title" id="downloadOptionsModalLabel">Opsi Download</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Pilih format laporan untuk: <br><strong class="text-primary"><?php echo htmlspecialchars($header_info['nama_permintaan']); ?></strong></p>
+                
+                <div class="d-grid gap-3">
+                    
+                    <form action="proses_download_laporan.php" method="POST" target="_blank" class="m-0">
+                        <input type="hidden" name="id_target" value="<?php echo $id_target; ?>">
+                        
+                        <?php foreach ($all_months_for_download as $month): ?>
+                            <input type="hidden" name="bulan_laporan[]" value="<?php echo htmlspecialchars($month); ?>">
+                        <?php endforeach; ?>
+                        
+                        <button type="submit" class="btn btn-success w-100" <?php echo empty($all_months_for_download) ? 'disabled' : ''; ?>>
+                            <i class="bi bi-file-earmark-spreadsheet-fill me-2"></i> Download Laporan Lengkap (Bulanan)
+                        </button>
+                    </form>
+
+                    <form action="proses_download_laporan_pdf.php" method="POST" target="_blank" class="m-0">
+                        <input type="hidden" name="id_target" value="<?php echo $id_target; ?>">
+                        <button type="submit" class="btn btn-danger w-100">
+                            <i class="bi bi-file-earmark-pdf-fill me-2"></i> Download Laporan Selesai (PDF)
+                        </button>
+                    </form>
+
+                </div>
+
+                <?php if (empty($all_months_for_download)): ?>
+                    <p class="text-muted text-center small mt-2">Laporan Lengkap (Bulanan) tidak tersedia karena tidak ada data harian.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
 
 <?php include_once '../../../templates/footer.php'; ?>
