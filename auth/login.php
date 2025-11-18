@@ -17,9 +17,19 @@ if (isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Menangkap pesan error dari proses_login.php (jika ada)
-$login_error_message = $_SESSION['error_message'] ?? null;
+$error_message = $_SESSION['error_message'] ?? null;
+$error_field = $_SESSION['error_field'] ?? null; // 'username', 'password', atau 'all'
+$old_username = $_SESSION['old_username'] ?? ($_COOKIE['remembered_username'] ?? '');
+
+// Hapus session error agar tidak muncul terus saat refresh
 unset($_SESSION['error_message']);
+unset($_SESSION['error_field']);
+unset($_SESSION['old_username']);
+
+// Helper function untuk mengecek error field (agar kodingan HTML lebih rapi)
+function isInvalid($field, $error_field) {
+    return ($error_field == $field || $error_field == 'all') ? 'border-danger text-danger' : '';
+}
 
 // Menangkap pesan dari proses_registrasi.php
 $register_error = $_GET['register_error'] ?? null;
@@ -905,6 +915,39 @@ $remembered_username = $_COOKIE['remembered_username'] ?? '';
         .branding-content {
             animation: fadeInUp 0.6s ease-out 0.2s both;
         }
+
+        /* --- TAMBAHAN CSS UNTUK ALERT & ERROR --- */
+        .custom-alert {
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        
+        .border-danger {
+            border-color: #EF4444 !important;
+            background-color: #FEF2F2;
+        }
+        
+        .border-danger:focus {
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1) !important;
+        }
+        
+        /* Mengubah warna icon menjadi merah jika error */
+        .input-wrapper .input-icon.text-danger {
+            color: #EF4444 !important;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
     </style>
 </head>
 <body>
@@ -958,6 +1001,15 @@ $remembered_username = $_COOKIE['remembered_username'] ?? '';
 
                 <!-- Login Form -->
                 <form id="loginForm" action="proses_login.php" method="POST">
+                    <?php if ($error_message): ?>
+                <div class="alert alert-danger custom-alert" role="alert">
+                    <i class="fas fa-exclamation-circle fa-lg"></i>
+                    <div>
+                        <strong>Login Gagal!</strong><br>
+                        <small><?php echo htmlspecialchars($error_message); ?></small>
+                    </div>
+                </div>
+                <?php endif; ?>
                     
                     <!-- Username Field -->
                     <div class="form-group">
@@ -965,35 +1017,32 @@ $remembered_username = $_COOKIE['remembered_username'] ?? '';
                         <div class="input-wrapper">
                             <input 
                                 type="text" 
-                                class="form-input" 
+                                class="form-input <?php echo isInvalid('username', $error_field); ?>" 
                                 id="username" 
                                 name="username" 
                                 placeholder="Masukkan username Anda"
-                                value="<?php echo htmlspecialchars($remembered_username); ?>"
+                                value="<?php echo htmlspecialchars($old_username); ?>"
                                 required
                             >
-                            <i class="fas fa-user input-icon"></i>
+                            <i class="fas fa-user input-icon <?php echo isInvalid('username', $error_field); ?>"></i>
                         </div>
                     </div>
 
                     <!-- Password Field -->
-                    <div class="form-group">
-                        <label for="password" class="form-label">Password</label>
-                        <div class="input-wrapper">
+                    <div class="input-wrapper">
                             <input 
                                 type="password" 
-                                class="form-input" 
+                                class="form-input <?php echo isInvalid('password', $error_field); ?>" 
                                 id="password" 
                                 name="password" 
                                 placeholder="Masukkan password Anda"
                                 required
                             >
-                            <i class="fas fa-lock input-icon"></i>
+                            <i class="fas fa-lock input-icon <?php echo isInvalid('password', $error_field); ?>"></i>
                             <button type="button" class="password-toggle" id="togglePassword">
                                 <i class="fas fa-eye"></i>
                             </button>
                         </div>
-                    </div>
 
                     <!-- Remember Me & Forgot Password -->
                     <div class="form-options">
@@ -1178,9 +1227,7 @@ $remembered_username = $_COOKIE['remembered_username'] ?? '';
         const toast = new ToastManager();
 
         // ========== SHOW PHP MESSAGES AS TOASTS ==========
-        <?php if (!empty($login_error_message)): ?>
-            toast.error('<?php echo addslashes($login_error_message); ?>', 'Login Gagal');
-        <?php endif; ?>
+        
 
         <?php if ($register_error): ?>
             toast.error('<?php echo addslashes($register_error); ?>', 'Registrasi Gagal');

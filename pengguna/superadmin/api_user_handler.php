@@ -20,9 +20,9 @@ define('ADMIN_CODE', 'KodeAdmin456');
 $response = [];
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
-// --- PERUBAHAN 1: Ambil ID dan Peran pengguna yang sedang login ---
+// --- Ambil ID dan Peran pengguna yang sedang login ---
 $current_user_id = $_SESSION['user_id'] ?? 0;
-$current_user_role = $_SESSION['role'] ?? ''; // Variabel baru yang diperlukan
+$current_user_role = $_SESSION['role'] ?? '';
 
 try {
     switch ($action) {
@@ -52,7 +52,6 @@ try {
             }
 
             $original_role = '';
-            // --- PERUBAHAN 2: Tambahkan variabel flag untuk mengecek kondisi "edit superadmin lain" ---
             $is_editing_another_superadmin = false;
 
             if ($is_edit) {
@@ -60,13 +59,13 @@ try {
                 $stmt->execute([$user_id]);
                 $original_role = $stmt->fetchColumn();
 
-                // --- PERUBAHAN 3: Logika untuk menentukan apakah sedang mengedit superadmin lain ---
+                // Logika untuk menentukan apakah sedang mengedit superadmin lain
                 if ($current_user_role === 'superadmin' && $original_role === 'superadmin' && $user_id != $current_user_id) {
                     $is_editing_another_superadmin = true;
                 }
             }
             
-            // Validasi Kode Spesial (logika ini tidak berubah)
+            // Validasi Kode Spesial
             $is_role_changed = $is_edit && $role !== $original_role;
             $requires_code = (!$is_edit && in_array($role, ['admin', 'superadmin'])) || ($is_role_changed && in_array($role, ['admin', 'superadmin']));
             
@@ -75,9 +74,20 @@ try {
                 if ($role == 'admin' && $special_code !== ADMIN_CODE) throw new Exception("Kode spesial Admin salah.");
             }
 
-            // --- AWAL PERUBAHAN LOGIKA UTAMA ---
+            // =================================================================
+            // --- NEW SECURITY CHECK: Mencegah Self-Demotion (Bunuh Diri Akun) ---
+            // =================================================================
+            if ($is_edit && $user_id == $current_user_id) {
+                // Jika user mengedit dirinya sendiri, cek apakah role diganti
+                if ($role !== 'superadmin') {
+                    throw new Exception("Demi keamanan sistem, Anda tidak diizinkan menurunkan Role akun Anda sendiri.");
+                }
+            }
+            // =================================================================
+
+            // --- LOGIKA UTAMA PENYIMPANAN ---
             if ($is_edit) {
-                // --- PERUBAHAN 4: Kondisi jika yang diedit adalah superadmin lain ---
+                // Kondisi jika yang diedit adalah superadmin lain
                 if ($is_editing_another_superadmin) {
                     // Jika mengedit sesama superadmin, HANYA ROLE yang boleh diupdate
                     $sql = "UPDATE users SET role = ? WHERE id = ?";
@@ -88,7 +98,7 @@ try {
                         throw new Exception("Superadmin tidak dapat mengubah password superadmin lainnya.");
                     }
                 } else {
-                    // Logika update normal (seperti kode lama Anda) untuk user lain atau diri sendiri
+                    // Logika update normal untuk user lain atau diri sendiri (tapi role diri sendiri sudah dijaga di atas)
                     if (!empty($password)) {
                         $sql = "UPDATE users SET username = ?, full_name = ?, role = ?, password = ? WHERE id = ?";
                         $params = [$username, $full_name, $role, password_hash($password, PASSWORD_DEFAULT), $user_id];
@@ -102,16 +112,15 @@ try {
                 $stmt->execute($params);
                 $response = ['status' => 'success', 'message' => 'Pengguna berhasil diperbarui!'];
 
-            } else { // Proses tambah pengguna baru (tidak berubah)
+            } else { // Proses tambah pengguna baru
                 $sql = "INSERT INTO users (username, full_name, password, role) VALUES (?, ?, ?, ?)";
                 $stmt = $pdo->prepare($sql);
                 $stmt->execute([$username, $full_name, password_hash($password, PASSWORD_DEFAULT), $role]);
                 $response = ['status' => 'success', 'message' => 'Pengguna baru berhasil ditambahkan!'];
             }
-            // --- AKHIR PERUBAHAN LOGIKA UTAMA ---
             break;
 
-        case 'delete_user': // (Logika ini sudah benar, saya hanya merapikan sedikit)
+        case 'delete_user':
             $user_id_to_delete = $_POST['user_id'] ?? 0;
 
             if ($user_id_to_delete == $current_user_id) {

@@ -126,6 +126,7 @@ try {
                     JOIN master_alur ma ON tm.id_alur = ma.id_alur
                     WHERE tm.id_alur IN ($placeholders)
                     AND pt.id_target IN ($admin_targets_subquery)
+                    AND pt.status = 'ongoing' -- <-- TAMBAHKAN FILTER INI
                     $date_filter_sql -- <-- FILTER TANGGAL DISISIPKAN DI SINI
                     ORDER BY lh.created_at DESC
                     $limit_sql"; // <-- TAMBAHKAN VARIABEL LIMIT DI SINI

@@ -153,6 +153,7 @@ try {
             JOIN master_alur ma ON tm.id_alur = ma.id_alur -- JOIN ke master_alur via tm
             WHERE tm.id_alur IN ($placeholders) -- Filter berdasarkan alur di target_material
               AND pt.id_target IN (SELECT DISTINCT id_target FROM target_alur_status WHERE id_alur IN ($placeholders)) -- Pastikan target relevan dgn admin
+              AND pt.status = 'ongoing' -- <-- TAMBAHKAN BARIS INI
             ORDER BY lh.created_at DESC
             LIMIT ?
         ";

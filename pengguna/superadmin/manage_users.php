@@ -1346,8 +1346,7 @@ $(document).ready(function() {
         $('#username').prop('disabled', false);
         $('#full_name').prop('disabled', false);
         $('#role').prop('disabled', false).val('user'); // Set default 'user'
-        $('#password').val('').attr('placeholder', 'Wajib diisi untuk pengguna baru').prop('required', true).prop('disabled', false);
-        $('#password-help').text('Wajib diisi untuk pengguna baru.');
+        $('.self-role-warning').remove();
         
         originalRole = ''; // Reset originalRole
         $('#special-code-group').hide();
@@ -1357,11 +1356,10 @@ $(document).ready(function() {
     });
 
     // Edit User Function
+    // Edit User Function
     window.editUser = function(userId) {
-        // Add loading state
         const row = $(`tr[data-user*='"id":${userId}']`).addClass('is-loading');
         
-        // PERBAIKAN: Mengganti 'process_users.php' ke 'api_user_handler.php'
         $.get('api_user_handler.php', { action: 'get_user', id: userId })
             .done(function(response) {
                 row.removeClass('is-loading');
@@ -1374,32 +1372,46 @@ $(document).ready(function() {
                     $('#full_name').val(user.full_name);
                     $('#role').val(user.role);
                     
+                    // Hapus pesan peringatan lama agar tidak duplikat
+                    $('.self-role-warning').remove(); 
+
                     originalRole = user.role;
                     
-                    // PERBAIKAN: Menggunakan logika disable dari kode lama
+                    // LOGIKA BARU DI SINI
+                    const isSelf = (user.id == currentSuperadminId);
                     const isEditingAnotherSuperadmin = currentSuperadminRole === 'superadmin' && 
-                        user.role === 'superadmin' && 
-                        user.id != currentSuperadminId;
+                        user.role === 'superadmin' && !isSelf;
                     
-                    if (isEditingAnotherSuperadmin) {
-                        // Nonaktifkan field jika mengedit superadmin lain
+                    if (isSelf) {
+                        // Jika mengedit diri sendiri
+                        $('#username').prop('disabled', false);
+                        $('#full_name').prop('disabled', false);
+                        
+                        // DISABLE ROLE & Beri Pesan
+                        $('#role').prop('disabled', true);
+                        $('#role').after('<small class="text-danger self-role-warning font-weight-bold mt-1 d-block"><i class="fas fa-exclamation-circle"></i> Anda tidak dapat mengubah role akun sendiri.</small>');
+                        
+                        $('#password').val('').attr('placeholder', 'Kosongkan jika tidak ingin mengubah').prop('required', false).prop('disabled', false);
+                        $('#password-help').text('Kosongkan jika tidak ingin mengubah password.');
+
+                    } else if (isEditingAnotherSuperadmin) {
+                        // Logika lama untuk superadmin lain
                         $('#username').prop('disabled', true);
                         $('#full_name').prop('disabled', true);
                         $('#role').prop('disabled', true);
-                        $('#password').val('').attr('placeholder', 'Tidak dapat mengubah password').prop('required', false).prop('disabled', true);
-                        $('#password-help').text('Tidak dapat mengubah password superadmin lain.');
+                        $('#password').prop('disabled', true);
+                        $('#password-help').text('Tidak dapat mengubah data superadmin lain.');
                     } else {
-                        // Aktifkan field jika mengedit diri sendiri atau role lain
+                        // Edit user/admin biasa
                         $('#username').prop('disabled', false);
                         $('#full_name').prop('disabled', false);
                         $('#role').prop('disabled', false);
-                        $('#password').val('').attr('placeholder', 'Kosongkan jika tidak ingin mengubah').prop('required', false).prop('disabled', false);
+                        $('#password').prop('disabled', false);
                         $('#password-help').text('Kosongkan jika tidak ingin mengubah password.');
                     }
 
-                        // Sembunyikan special code saat edit
-                        $('#special-code-group').hide();
-                        $('#special_code').val('');
+                    $('#special-code-group').hide();
+                    $('#special_code').val('');
                     
                     $('#userModal').modal('show');
                 } else {

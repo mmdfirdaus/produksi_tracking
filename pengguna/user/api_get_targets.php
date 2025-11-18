@@ -101,6 +101,9 @@ switch ($type) {
                     MAX(lh.id_laporan) AS max_id_laporan
                 FROM laporan_harian lh
                 JOIN target_material tm ON lh.id_material = tm.id_material
+                -- PERUBAHAN BARU: Join ke production_targets di dalam subquery
+                JOIN production_targets pt_inner ON tm.id_target = pt_inner.id_target
+                WHERE pt_inner.status = 'ongoing' -- Filter target 'ongoing' di sini
                 GROUP BY tm.id_target
             ) AS latest_reports
             -- 2. Join kembali untuk mendapatkan detail laporan terbaru itu
@@ -110,6 +113,7 @@ switch ($type) {
             JOIN production_targets pt ON tm.id_target = pt.id_target
             JOIN master_barang mb ON pt.id_barang = mb.id_barang
             JOIN master_alur ma ON tm.id_alur = ma.id_alur
+            -- Filter 'ongoing' tidak diperlukan lagi di sini karena sudah di subquery
             -- 4. Urutkan berdasarkan waktu laporan terbaru
             ORDER BY lh.created_at DESC";
     
