@@ -52,9 +52,10 @@ if ($id_barang === null) {
 
 function calculate_progress($pdo, $id_target) {
     $query_total = "SELECT SUM(tm.jumlah_per_unit * pt.jumlah_unit) AS total_kebutuhan
-                          FROM target_material tm
-                          JOIN production_targets pt ON tm.id_target = pt.id_target
-                          WHERE tm.id_target = ?";
+                    FROM target_material tm
+                    JOIN production_targets pt ON tm.id_target = pt.id_target
+                    JOIN alur_barang ab ON pt.id_barang = ab.id_barang AND tm.id_alur = ab.id_alur
+                    WHERE tm.id_target = ?";
     $stmt_total = $pdo->prepare($query_total);
     $stmt_total->execute([$id_target]);
     $total_kebutuhan = (int)($stmt_total->fetchColumn() ?: 0);
@@ -63,8 +64,11 @@ function calculate_progress($pdo, $id_target) {
 
     $query_selesai = "SELECT SUM(lh.jumlah_selesai) AS total_selesai
                                 FROM laporan_harian lh
-                                JOIN target_material tm ON lh.id_material = tm.id_material
-                                WHERE tm.id_target = ?";
+                      JOIN target_material tm ON lh.id_material = tm.id_material
+                      JOIN production_targets pt ON tm.id_target = pt.id_target
+                      -- Filter yang sama diterapkan di sini
+                      JOIN alur_barang ab ON pt.id_barang = ab.id_barang AND tm.id_alur = ab.id_alur
+                      WHERE tm.id_target = ?";
     $stmt_selesai = $pdo->prepare($query_selesai);
     $stmt_selesai->execute([$id_target]);
     $total_selesai = (int)($stmt_selesai->fetchColumn() ?: 0);
