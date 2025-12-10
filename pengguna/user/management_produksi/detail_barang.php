@@ -66,7 +66,7 @@ function get_countdown($deadline) {
 try {
     // 4. Query untuk Mengambil Detail Barang
     $barang_stmt = $pdo->prepare("
-        SELECT mb.nama_barang, mb.gambar, mk.nama_kategori
+        SELECT mb.nama_barang,mb.kode_barang, mb.gambar, mk.nama_kategori
         FROM master_barang mb
         LEFT JOIN master_kategori mk ON mb.id_kategori = mk.id_kategori
         WHERE mb.id_barang = ? AND mb.is_active = 1
@@ -94,7 +94,7 @@ try {
     $sort_order = ($sort === 'terbaru') ? 'DESC' : 'ASC';
     
     $target_stmt = $pdo->prepare("
-        SELECT id_target, nama_permintaan, jumlah_unit, status, prioritas, is_priority, priority_deadline, created_at
+        SELECT id_target, nama_permintaan,no_spk, jumlah_unit, status, prioritas, is_priority, priority_deadline, created_at
         FROM production_targets 
         WHERE id_barang = ? AND status = 'ongoing' AND is_active = 1
         ORDER BY 
@@ -831,6 +831,13 @@ $base_url_uploads = $base_url . '/uploads/';
                         <span class="info-label">Nama Barang</span>
                         <span class="info-value"><?php echo htmlspecialchars($barang['nama_barang']); ?></span>
                     </div>
+                    
+<div class="info-row">
+    <i class="bi bi-upc-scan info-icon"></i> 
+                        <span class="info-label">ID Barang:</span>
+                        <span class="ms-2 badge bg-white text-primary border"><?php echo htmlspecialchars($barang['kode_barang']); ?></span>
+                    </div>
+
                     <div class="info-row">
                         <span class="info-label">Kategori</span>
                         <span class="info-value"><?php echo htmlspecialchars($barang['nama_kategori'] ?? 'N/A'); ?></span>
@@ -871,6 +878,9 @@ $base_url_uploads = $base_url . '/uploads/';
             <div class="target-card <?php echo $is_priority ? 'priority' : ''; ?> loading" style="animation-delay: <?php echo 0.6 + ($index * 0.1); ?>s;">
                 <div class="target-header">
                     <h5 class="target-title"><?php echo htmlspecialchars($target['nama_permintaan']); ?></h5>
+                    <small class="text-muted d-block mb-2">
+    <i class="bi bi-hash me-1"></i>SPK: <strong><?php echo htmlspecialchars($target['no_spk']); ?></strong>
+</small>
                     <?php if ($is_priority): ?>
                         <div class="target-badges">
                             <span class="badge-priority">

@@ -58,8 +58,8 @@ try {
     // 5. [QUERY 1] Ambil Data Header (Info Target)
     $header_stmt = $pdo->prepare("
         SELECT 
-            pt.nama_permintaan, pt.jumlah_unit, pt.created_at,
-            mb.nama_barang, mk.nama_kategori
+            pt.nama_permintaan, pt.jumlah_unit, pt.created_at, pt.no_spk,
+            mb.nama_barang,mb.kode_barang, mk.nama_kategori
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
         LEFT JOIN master_kategori mk ON mb.id_kategori = mk.id_kategori
@@ -196,7 +196,10 @@ try {
     </head>
     <body>
         <div class="header-title">LAPORAN PRODUKSI ON-GOING</div>
-        <div class="header-subtitle">' . htmlspecialchars($header_info['nama_barang']) . ' - ' . htmlspecialchars($header_info['nama_permintaan']) . '</div>
+        <div class="header-subtitle">
+    ' . htmlspecialchars($header_info['nama_barang']) . ' (' . htmlspecialchars($header_info['kode_barang']) . ') - 
+    ' . htmlspecialchars($header_info['nama_permintaan']) . '
+</div>
         <div class="container">
     ';
 
@@ -204,23 +207,24 @@ try {
     // Sesuai permintaan, TANPA TANGGAL SELESAI
     $html .= '
             <table class="table-header">
-                <tr>
-                    <th>Nama Target</th>
-                    <td>' . htmlspecialchars($header_info['nama_permintaan']) . '</td>
-                    <th>Bulan Laporan</th>
-                    <td>' . htmlspecialchars($nama_bulan_tahun) . '</td>
-                </tr>
-                <tr>
-                    <th>Kategori</th>
-                    <td>' . htmlspecialchars($header_info['nama_kategori'] ?? 'N/A') . '</td>
-                    <th>Jumlah Unit</th>
-                    <td>' . htmlspecialchars($header_info['jumlah_unit']) . ' Unit</td>
-                </tr>
-                <tr>
-                    <th>Tanggal Mulai</th>
-                    <td colspan="3">' . format_tanggal_indonesia($header_info['created_at']) . '</td>
-                </tr>
-            </table>
+    <tr>
+        <th>Nama Target</th>
+        <td>' . htmlspecialchars($header_info['nama_permintaan']) . '</td>
+        <th>No. SPK</th> <td>' . htmlspecialchars($header_info['no_spk']) . '</td>
+    </tr>
+    <tr>
+        <th>Kategori</th>
+        <td>' . htmlspecialchars($header_info['nama_kategori'] ?? 'N/A') . '</td>
+        <th>Bulan Laporan</th>
+        <td>' . htmlspecialchars($nama_bulan_tahun) . '</td>
+    </tr>
+    <tr>
+        <th>Jumlah Unit</th>
+        <td>' . htmlspecialchars($header_info['jumlah_unit']) . ' Unit</td>
+        <th>Tanggal Mulai</th>
+        <td>' . format_tanggal_indonesia($header_info['created_at']) . '</td>
+    </tr>
+</table>
     ';
 
     // 9. Loop per Alur untuk render Tabel Komponen

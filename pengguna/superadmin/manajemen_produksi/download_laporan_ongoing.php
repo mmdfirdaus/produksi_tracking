@@ -29,8 +29,8 @@ try {
     // Ambil Informasi Umum Target (dari kode lama)
     $info_stmt = $pdo->prepare("
         SELECT 
-            pt.nama_permintaan, pt.jumlah_unit,
-            mb.id_barang, mb.nama_barang
+            pt.nama_permintaan, pt.jumlah_unit,pt.no_spk,
+            mb.id_barang, mb.nama_barang, mb.kode_barang
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
         WHERE pt.id_target = :id_target
@@ -72,8 +72,8 @@ try {
     // =================================================================
 
     // Header Laporan
-    $sheet->setCellValue('A1', 'Laporan Produksi: ' . htmlspecialchars($target_info['nama_barang']));
-    $sheet->setCellValue('A2', 'Target Permintaan: ' . htmlspecialchars($target_info['nama_permintaan']));
+    $sheet->setCellValue('A1', 'Laporan Produksi: ' . htmlspecialchars($target_info['nama_barang']) . ' (ID: ' . htmlspecialchars($target_info['kode_barang']) . ')');
+    $sheet->setCellValue('A2', 'Target Permintaan: ' . htmlspecialchars($target_info['nama_permintaan']) . ' (SPK: ' . htmlspecialchars($target_info['no_spk']) . ')');
     $sheet->setCellValue('A3', 'Bulan: ' . $nama_bulan_tahun);
     $sheet->getStyle('A1:A3')->applyFromArray($mainHeaderStyle);
 

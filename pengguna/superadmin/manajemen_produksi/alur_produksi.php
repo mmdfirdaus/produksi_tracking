@@ -21,7 +21,7 @@ if ($id_target === 0 || $id_barang === 0) {
 try {
     // 1. Ambil data target produksi dan nama barang (query header)
     $stmt = $pdo->prepare("
-        SELECT pt.nama_permintaan, pt.jumlah_unit, mb.nama_barang
+        SELECT pt.nama_permintaan, pt.jumlah_unit, pt.no_spk, mb.nama_barang, mb.kode_barang
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
         WHERE pt.id_target = :id_target
@@ -576,9 +576,9 @@ include '../../../templates/header_superadmin.php';
         gap: 1rem; /* Beri sedikit jarak antar kartu */
     }
 
-    /* Target kartu pertama (Nama Barang) agar lebarnya penuh */
-    .target-info .info-card:first-child {
-        grid-column: 1 / span 2; /* Buat kartu pertama membentang selebar 2 kolom */
+    .target-info .info-card:first-child,
+    .target-info .info-card:nth-child(2) {
+        grid-column: 1 / span 2; 
     }
     .production-grid { grid-template-columns: 1fr; }
     .section-title { font-size: 1.5rem; }
@@ -611,7 +611,19 @@ include '../../../templates/header_superadmin.php';
                     <div class="info-card">
                         <h5>Nama Barang</h5>
                         <p class="value"><?php echo htmlspecialchars($target['nama_barang']); ?></p>
+                        <small class="d-block mt-1 text-white-50" style="font-size: 0.75rem;">
+            <i class="bi bi-upc-scan me-1"></i><?php echo htmlspecialchars($target['kode_barang']); ?>
+        </small>
                     </div>
+                    <div class="info-card">
+        <h5>Target Permintaan</h5>
+        <p class="value"><?php echo htmlspecialchars($target['nama_permintaan']); ?></p>
+        <div class="mt-1">
+            <span class="badge bg-white text-dark">
+                <i class="bi bi-hash me-1"></i><?php echo htmlspecialchars($target['no_spk']); ?>
+            </span>
+        </div>
+    </div>
                     <div class="info-card">
                         <h5>Jumlah Target</h5>
                         <p class="value"><?php echo number_format($target['jumlah_unit']); ?> Unit</p>

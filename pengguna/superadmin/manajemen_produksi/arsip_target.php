@@ -17,7 +17,7 @@ if (!isset($_GET['id_barang'])) {
 $id_barang = (int)$_GET['id_barang'];
 
 // Ambil nama barang untuk judul
-$barang_stmt = $pdo->prepare("SELECT nama_barang FROM master_barang WHERE id_barang = ?");
+$barang_stmt = $pdo->prepare("SELECT nama_barang, kode_barang FROM master_barang WHERE id_barang = ?");
 $barang_stmt->execute([$id_barang]);
 $barang = $barang_stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -137,7 +137,12 @@ $total_unit_arsip = array_sum(array_column($targets_arsip, 'jumlah_unit'));
                     <i class="bi bi-archive-fill"></i>
                     <div>
                         <h1>Arsip Target Produksi</h1>
-                        <p class="breadcrumb-text">Untuk barang: <strong><?php echo htmlspecialchars($barang['nama_barang']); ?></strong></p>
+                        <p class="breadcrumb-text">
+    Barang: <strong><?php echo htmlspecialchars($barang['nama_barang']); ?></strong>
+    <span class="badge bg-light text-primary border ms-2">
+        <i class="bi bi-upc-scan me-1"></i><?php echo htmlspecialchars($barang['kode_barang']); ?>
+    </span>
+</p>
                     </div>
                 </div>
                 <a href="detail_barang.php?id=<?php echo $id_barang; ?>" class="back-btn">
@@ -193,8 +198,11 @@ $total_unit_arsip = array_sum(array_column($targets_arsip, 'jumlah_unit'));
                                 <?php foreach ($targets_arsip as $target): ?>
                                     <tr>
                                         <td>
-                                            <div class="fw-semibold"><?php echo htmlspecialchars($target['nama_permintaan']); ?></div>
-                                        </td>
+    <div class="fw-semibold"><?php echo htmlspecialchars($target['nama_permintaan']); ?></div>
+    <small class="text-muted d-block mt-1">
+        <i class="bi bi-hash me-1"></i><?php echo htmlspecialchars($target['no_spk'] ?? '-'); ?>
+    </small>
+</td>
                                         <td class="text-center">
                                             <span class="quantity-badge"><?php echo htmlspecialchars($target['jumlah_unit']); ?></span>
                                         </td>

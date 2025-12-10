@@ -41,7 +41,7 @@ $durasi_hari = 0;
 try {
     // 2. Ambil info header target produksi (Ditambah tanggal mulai & selesai)
     $header_stmt = $pdo->prepare("
-        SELECT pt.nama_permintaan, pt.jumlah_unit, mb.nama_barang, pt.id_barang,
+        SELECT pt.nama_permintaan, pt.jumlah_unit, pt.no_spk, mb.nama_barang, mb.kode_barang, pt.id_barang,
                pt.created_at AS tanggal_mulai, pt.tanggal_selesai
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
@@ -921,10 +921,19 @@ $month_nav = getMonthNavigation($selected_month, $available_months);
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
             <div>
                 <h1 class="page-title-main">📋 Rincian Laporan Selesai</h1>
-                <p class="page-subtitle">
-                    <?php echo htmlspecialchars($header_info['nama_barang']); ?> - 
-                    <?php echo htmlspecialchars($header_info['nama_permintaan']); ?>
-                </p>
+<div class="page-subtitle">
+    <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="fw-bold text-dark fs-5"><?php echo htmlspecialchars($header_info['nama_barang']); ?></span>
+        <span class="badge bg-light text-secondary border">
+            <i class="bi bi-upc-scan me-1"></i><?php echo htmlspecialchars($header_info['kode_barang']); ?>
+        </span>
+    </div>
+    <div class="d-flex align-items-center gap-2 text-muted">
+        <span>Target: <?php echo htmlspecialchars($header_info['nama_permintaan']); ?></span>
+        <span class="text-muted">|</span>
+        <span><i class="bi bi-hash"></i> SPK: <?php echo htmlspecialchars($header_info['no_spk']); ?></span>
+    </div>
+</div>
             </div>
             
             <div class="d-flex flex-wrap gap-2">

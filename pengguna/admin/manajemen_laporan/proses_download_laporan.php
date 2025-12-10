@@ -29,8 +29,8 @@ try {
     // Ambil Informasi Umum Target
     $info_stmt = $pdo->prepare("
         SELECT 
-            pt.nama_permintaan, pt.jumlah_unit, pt.created_at, pt.tanggal_selesai,
-            mb.id_barang, mb.nama_barang
+            pt.nama_permintaan, pt.jumlah_unit, pt.created_at, pt.tanggal_selesai, pt.no_spk,
+            mb.id_barang, mb.nama_barang, mb.kode_barang
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
         WHERE pt.id_target = :id_target
@@ -96,8 +96,8 @@ try {
     // Informasi Umum
     $summarySheet->mergeCells('A3:B3')->setCellValue('A3', 'INFORMASI UMUM TARGET');
     $summarySheet->getStyle('A3:B3')->applyFromArray($categoryStyle);
-    $summarySheet->setCellValue('A4', 'Nama Barang')->setCellValue('B4', $target_info['nama_barang']);
-    $summarySheet->setCellValue('A5', 'Nama Target')->setCellValue('B5', $target_info['nama_permintaan']);
+    $summarySheet->setCellValue('A4', 'Nama Barang')->setCellValue('B4', $target_info['nama_barang'] . ' (' . $target_info['kode_barang'] . ')');
+    $summarySheet->setCellValue('A5', 'Nama Target')->setCellValue('B5', $target_info['nama_permintaan'] . ' (SPK: ' . $target_info['no_spk'] . ')');
     $summarySheet->setCellValue('A6', 'Jumlah Unit')->setCellValue('B6', $target_info['jumlah_unit'] . ' Unit');
     $summarySheet->setCellValue('A7', 'Tanggal Mulai Produksi')->setCellValue('B7', $production_dates['start_date'] ? date('d F Y', strtotime($production_dates['start_date'])) : 'N/A');
     $summarySheet->setCellValue('A8', 'Tanggal Selesai')->setCellValue('B8', $target_info['tanggal_selesai'] ? date('d F Y', strtotime($target_info['tanggal_selesai'])) : 'N/A');

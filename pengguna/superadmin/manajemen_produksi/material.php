@@ -25,7 +25,9 @@ try {
         SELECT 
             pt.nama_permintaan, 
             pt.jumlah_unit, 
-            mb.nama_barang, 
+            pt.no_spk,
+            mb.nama_barang,
+            mb.kode_barang, 
             ma.nama_alur, 
             pt.id_barang,
             -- Ambil status dari tabel baru, jika tidak ada, default-nya 'Pending'
@@ -1043,12 +1045,18 @@ try {
                     <div class="info-card">
                         <h6 class="info-label">Nama Barang</h6>
                         <h5 class="info-value"><?php echo htmlspecialchars($header_info['nama_barang']); ?></h5>
+                        <small class="text-white-50" style="font-size: 0.8rem;">
+        <i class="bi bi-upc-scan me-1"></i><?php echo htmlspecialchars($header_info['kode_barang']); ?>
+    </small>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="info-card">
                         <h6 class="info-label">PO / Nama Permintaan</h6>
                         <h5 class="info-value"><?php echo htmlspecialchars($header_info['nama_permintaan']); ?></h5>
+                        <small class="text-white-50" style="font-size: 0.8rem;">
+        <i class="bi bi-hash me-1"></i>SPK: <?php echo htmlspecialchars($header_info['no_spk']); ?>
+    </small>
                     </div>
                 </div>
             </div>

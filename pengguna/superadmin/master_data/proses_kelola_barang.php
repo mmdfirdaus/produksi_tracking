@@ -38,6 +38,15 @@ function uploadGambar($file) {
 // Proses Tambah Barang
 if (isset($_POST['tambah_barang'])) {
     $nama_barang = $_POST['nama_barang'] ?? '';
+    $kode_barang = trim($_POST['kode_barang'] ?? '');
+    
+    // Cek Duplikat ID Barang
+    $stmt_cek = $pdo->prepare("SELECT id_barang FROM master_barang WHERE kode_barang = ?");
+    $stmt_cek->execute([$kode_barang]);
+    if ($stmt_cek->rowCount() > 0) {
+        header("Location: kelola_master_barang.php?status=error&message=" . urlencode("Gagal: ID Barang '$kode_barang' sudah digunakan."));
+        exit;
+    }
     // ### PERUBAHAN 1: Mengambil id_kategori dari dropdown ###
     $id_kategori = (int)($_POST['id_kategori'] ?? 0);
     $alurs = isset($_POST['alurs']) ? (array)$_POST['alurs'] : [];
@@ -62,9 +71,10 @@ if (isset($_POST['tambah_barang'])) {
 
         // ### PERUBAHAN 2: Menyesuaikan Query INSERT untuk menyimpan id_kategori ###
         // --- KODE BARU (METODE BIND PARAM) ---
-$stmt = $pdo->prepare("INSERT INTO master_barang (nama_barang, id_kategori, gambar) VALUES (:nama_barang, :id_kategori, :gambar)");
+$stmt = $pdo->prepare("INSERT INTO master_barang (nama_barang, kode_barang, id_kategori, gambar) VALUES (:nama_barang, :kode_barang, :id_kategori, :gambar)");
 
 $stmt->bindParam(':nama_barang', $nama_barang, PDO::PARAM_STR);
+$stmt->bindParam(':kode_barang', $kode_barang);
 $stmt->bindParam(':id_kategori', $id_kategori, PDO::PARAM_INT); // Mengikat secara eksplisit sebagai Angka
 $stmt->bindParam(':gambar', $gambar, PDO::PARAM_STR);
 
@@ -98,6 +108,15 @@ $id_barang_baru = $pdo->lastInsertId();
 if (isset($_POST['edit_barang'])) {
     $id_barang = $_POST['id_barang'] ?? 0;
     $nama_barang = $_POST['nama_barang'] ?? '';
+    $kode_barang = trim($_POST['kode_barang'] ?? '');
+
+    // Cek Duplikat saat Edit (kecuali punya sendiri)
+    $stmt_cek = $pdo->prepare("SELECT id_barang FROM master_barang WHERE kode_barang = ? AND id_barang != ?");
+    $stmt_cek->execute([$kode_barang, $id_barang]);
+    if ($stmt_cek->rowCount() > 0) {
+        header("Location: kelola_master_barang.php?status=error&message=" . urlencode("Gagal: ID Barang '$kode_barang' sudah digunakan barang lain."));
+        exit;
+    }
     // ### PERUBAHAN 4: Mengambil id_kategori untuk proses update ###
     $id_kategori = (int)($_POST['id_kategori'] ?? 0);
     $alurs = isset($_POST['alurs']) ? (array)$_POST['alurs'] : [];
@@ -125,8 +144,8 @@ if (isset($_POST['edit_barang'])) {
             $stmt->execute([$nama_barang, $id_kategori, $hasil_upload, $id_barang]);
         } else {
             // ### PERUBAHAN 6: Menyesuaikan Query UPDATE tanpa gambar ###
-            $stmt = $pdo->prepare("UPDATE master_barang SET nama_barang = ?, id_kategori = ? WHERE id_barang = ?");
-            $stmt->execute([$nama_barang, $id_kategori, $id_barang]);
+            $stmt = $pdo->prepare("UPDATE master_barang SET nama_barang = ?, kode_barang = ?, id_kategori = ? WHERE id_barang = ?");
+$stmt->execute([$nama_barang, $kode_barang, $id_kategori, $id_barang]);
         }
 
         // Hapus alur lama dan masukkan yang baru (logika Anda sudah benar)

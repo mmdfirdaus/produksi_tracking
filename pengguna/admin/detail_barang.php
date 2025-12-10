@@ -78,7 +78,7 @@ function calculate_progress($pdo, $id_target) {
 
 try {
     $barang_stmt = $pdo->prepare("
-        SELECT mb.nama_barang, mb.gambar, mk.nama_kategori
+        SELECT mb.nama_barang,mb.kode_barang, mb.gambar, mk.nama_kategori
         FROM master_barang mb
         LEFT JOIN master_kategori mk ON mb.id_kategori = mk.id_kategori
         WHERE mb.id_barang = ? AND mb.is_active = 1
@@ -134,7 +134,7 @@ try {
     // --- PERUBAHAN LANGKAH 1 (SELECT) ---
     // Query target dengan pengurutan prioritas
     $target_stmt = $pdo->prepare("
-        SELECT id_target, nama_permintaan, jumlah_unit, status, prioritas, is_priority, priority_deadline, created_at, status_pengerjaan /* Tambahkan kolom lain jika perlu */
+        SELECT id_target, nama_permintaan, no_spk, jumlah_unit, status, prioritas, is_priority, priority_deadline, created_at, status_pengerjaan /* Tambahkan kolom lain jika perlu */
         FROM production_targets 
         WHERE id_barang = ? AND status = 'ongoing' AND is_active = 1
         
@@ -1248,6 +1248,13 @@ $base_url_uploads = $base_url . '/uploads/';
                 <h1 class="product-title"><?php echo htmlspecialchars($barang['nama_barang']); ?></h1>
                 <div class="product-info">
                     <div class="info-item">
+    <i class="bi bi-upc-scan info-icon"></i>
+    <div>
+        <strong>ID Barang:</strong>
+        <span class="ms-2 badge bg-white text-primary border"><?php echo htmlspecialchars($barang['kode_barang']); ?></span>
+    </div>
+</div>
+                    <div class="info-item">
                         <i class="bi bi-tag-fill info-icon"></i>
                         <div>
                             <strong>Kategori:</strong>
@@ -1299,6 +1306,9 @@ $base_url_uploads = $base_url . '/uploads/';
                             <h3 class="target-title">
                                 <?php echo htmlspecialchars($target['nama_permintaan']); ?>
                             </h3>
+                            <small class="text-muted d-block mb-2">
+    <i class="bi bi-hash me-1"></i>SPK: <strong><?php echo htmlspecialchars($target['no_spk']); ?></strong>
+</small>
                             <div class="d-flex gap-2 align-items-center">
                                 <span class="status-badge bg-warning text-dark">
                                     <?php echo ucfirst($target['status']); ?>

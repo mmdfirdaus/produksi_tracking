@@ -13,7 +13,7 @@ $id_user_admin = $_SESSION['user_id'];
 try {
     // 1. Ambil data target produksi dan nama barang
     $stmt = $pdo->prepare("
-        SELECT pt.nama_permintaan, pt.jumlah_unit, pt.id_barang, mb.nama_barang
+        SELECT pt.nama_permintaan, pt.jumlah_unit, pt.no_spk, pt.id_barang, mb.nama_barang, mb.kode_barang
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
         WHERE pt.id_target = :id_target
@@ -819,8 +819,8 @@ try {
         margin-top: 1rem;
     }
     
-    /* Nama Barang - Full Width */
-    .target-info .info-card:first-child {
+    .target-info .info-card:first-child,
+    .target-info .info-card:nth-child(2) {
         grid-column: 1 / span 2; /* Membentang 2 kolom */
     }
     
@@ -1197,7 +1197,18 @@ html {
                     <div class="info-card">
                         <h5>Nama Barang</h5>
                         <p class="value"><?php echo htmlspecialchars($target['nama_barang']); ?></p>
+                        <small class="d-block mt-1 text-white-50" style="font-size: 0.75rem;">
+            <i class="bi bi-upc-scan me-1"></i><?php echo htmlspecialchars($target['kode_barang']); ?>
+        </small>
                     </div>
+                    <div class="info-card">
+        <h5>Target Permintaan</h5> <p class="value"><?php echo htmlspecialchars($target['nama_permintaan']); ?></p>
+        <div class="mt-1">
+            <span class="badge bg-white text-dark" style="font-weight: 600; font-size: 0.8rem;">
+                <i class="bi bi-hash me-1"></i><?php echo htmlspecialchars($target['no_spk']); ?>
+            </span>
+        </div>
+    </div>
                     <div class="info-card">
                         <h5>Jumlah Target</h5>
                         <p class="value"><?php echo number_format($target['jumlah_unit']); ?> Unit</p>

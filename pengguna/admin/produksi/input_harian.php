@@ -27,7 +27,7 @@ try {
     // 2. Ambil info header DAN status pengerjaan
     $header_stmt = $pdo->prepare("
         SELECT 
-            pt.nama_permintaan, pt.jumlah_unit, mb.nama_barang, ma.nama_alur, pt.id_barang,
+            pt.nama_permintaan, pt.jumlah_unit,pt.no_spk, mb.nama_barang,mb.kode_barang, ma.nama_alur, pt.id_barang,
             COALESCE(tas.status_pengerjaan, 'Pending') AS status_pengerjaan
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
@@ -1052,19 +1052,27 @@ html {
                 </h2>
                 
                 <div class="row g-3">
-                    <div class="col-md-6">
-                        <div class="info-card">
-                            <h6 class="info-label">Nama Barang</h6>
-                            <h5 class="info-value"><?php echo htmlspecialchars($header_info['nama_barang']); ?></h5>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="info-card">
-                            <h6 class="info-label">PO / Nama Permintaan</h6>
-                            <h5 class="info-value"><?php echo htmlspecialchars($header_info['nama_permintaan']); ?></h5>
-                        </div>
-                    </div>
-                </div>
+    <div class="col-md-6">
+        <div class="info-card">
+            <h6 class="info-label">Nama Barang</h6>
+            <h5 class="info-value"><?php echo htmlspecialchars($header_info['nama_barang']); ?></h5>
+            <div class="mt-1">
+                <span class="badge bg-white text-primary" style="font-size: 0.75rem; font-weight: 600;">
+                    <i class="bi bi-upc-scan me-1"></i><?php echo htmlspecialchars($header_info['kode_barang']); ?>
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="info-card">
+            <h6 class="info-label">PO / Nama Permintaan</h6>
+            <h5 class="info-value"><?php echo htmlspecialchars($header_info['nama_permintaan']); ?></h5>
+            <div class="mt-1 text-white-50" style="font-size: 0.85rem;">
+                <i class="bi bi-hash me-1"></i>SPK: <strong><?php echo htmlspecialchars($header_info['no_spk']); ?></strong>
+            </div>
+        </div>
+    </div>
+</div>
                 
                 <div class="row g-3 mt-2">
                     <div class="col-md-12">

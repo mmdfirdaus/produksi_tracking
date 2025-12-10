@@ -26,7 +26,7 @@ $available_months = [];
 try {
     // 2. Ambil info header target produksi
     $header_stmt = $pdo->prepare("
-        SELECT pt.nama_permintaan, pt.jumlah_unit, mb.nama_barang, pt.id_barang
+        SELECT pt.nama_permintaan, pt.jumlah_unit,pt.no_spk, mb.nama_barang, mb.kode_barang, pt.id_barang
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
         WHERE pt.id_target = :id_target
@@ -901,10 +901,22 @@ $month_nav = getMonthNavigation($selected_month, $available_months);
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
             <div>
                 <h1 class="page-title-main">📦 Rincian Progres Material</h1>
-                <p class="page-subtitle">
-                    <?php echo htmlspecialchars($header_info['nama_barang']); ?> - 
-                    <?php echo htmlspecialchars($header_info['nama_permintaan']); ?>
-                </p>
+<div class="page-subtitle mt-2">
+    <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+        <span class="fw-bold text-dark fs-5"><?php echo htmlspecialchars($header_info['nama_barang']); ?></span>
+        <span class="badge bg-light text-secondary border">
+            <i class="bi bi-upc-scan me-1"></i><?php echo htmlspecialchars($header_info['kode_barang']); ?>
+        </span>
+    </div>
+    
+    <div class="d-flex align-items-center flex-wrap gap-2 text-muted">
+        <span><i class="bi bi-bullseye me-1"></i><?php echo htmlspecialchars($header_info['nama_permintaan']); ?></span>
+        <span class="d-none d-md-inline text-muted mx-1">|</span>
+        <span class="badge bg-white text-dark border">
+            <i class="bi bi-hash me-1"></i>SPK: <?php echo htmlspecialchars($header_info['no_spk']); ?>
+        </span>
+    </div>
+</div>
             </div>
             <a href="detail_barang.php?id=<?php echo $header_info['id_barang']; ?>" class="btn-back-custom">
                 <i class="bi bi-arrow-left"></i> Kembali

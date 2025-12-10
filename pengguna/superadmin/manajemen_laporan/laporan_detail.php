@@ -25,7 +25,7 @@ $offset = ($page - 1) * $limit;
 
 try {
     // Ambil Nama Barang untuk Judul
-    $barang_stmt = $pdo->prepare("SELECT nama_barang FROM master_barang WHERE id_barang = ?");
+    $barang_stmt = $pdo->prepare("SELECT nama_barang, kode_barang FROM master_barang WHERE id_barang = ?");
     $barang_stmt->execute([$id_barang]);
     $barang = $barang_stmt->fetch(PDO::FETCH_ASSOC);
     if (!$barang) {
@@ -37,7 +37,7 @@ try {
     $params = [':id_barang' => $id_barang];
 
     if (!empty($search_query)) {
-        $base_sql .= " AND nama_permintaan LIKE :search";
+        $base_sql .= " AND (nama_permintaan LIKE :search OR no_spk LIKE :search)";
         $params[':search'] = "%" . $search_query . "%";
     }
 
@@ -769,14 +769,17 @@ function getAllProductionMonths($pdo, $id_target) {
                         </div>
                     </div>
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                        <div>
-                            <h2 class="h4 text-muted mb-0">Untuk Barang: <strong class="text-primary"><?php echo htmlspecialchars($barang['nama_barang']); ?></strong></h2>
-                        </div>
+                        <h2 class="h4 text-muted mb-0">
+    Barang: <strong class="text-primary"><?php echo htmlspecialchars($barang['nama_barang']); ?></strong>
+    <span class="badge bg-light text-dark border ms-2" style="font-size: 0.9rem; font-weight: normal;">
+        <i class="bi bi-upc-scan me-1"></i><?php echo htmlspecialchars($barang['kode_barang']); ?>
+    </span>
+</h2>
                         <form action="" method="GET" class="search-container">
                             <input type="hidden" name="id_barang" value="<?php echo $id_barang; ?>">
                             <div class="d-flex gap-2">
                                 <input type="text" class="form-control search-input" name="search"
-                                    placeholder="🔍 Cari nama target..." value="<?php echo htmlspecialchars($search_query); ?>">
+                                    placeholder="🔍 Cari nama target atau No. SPK..." value="<?php echo htmlspecialchars($search_query); ?>">
                                 <button class="btn search-btn" type="submit"><i class="bi bi-search"></i></button>
                             </div>
                         </form>
@@ -824,7 +827,7 @@ function getAllProductionMonths($pdo, $id_target) {
                                     <tr>
                                         <th>No</th>
                                         <th>Nama Permintaan / Target</th>
-                                        <th class="text-center">Unit</th>
+                                        <th>No. SPK</th><th class="text-center">Unit</th>
                                         <th>Tanggal Dibuat</th>
                                         <th>Tanggal Selesai</th>
                                         <th class="text-center">Durasi</th>
@@ -836,6 +839,11 @@ function getAllProductionMonths($pdo, $id_target) {
                                     <tr>
                                         <td><strong><?php echo $no++; ?></strong></td>
                                         <td><strong><?php echo htmlspecialchars($target['nama_permintaan']); ?></strong></td>
+                                        <td>
+    <span class="badge bg-light text-dark border">
+        <i class="bi bi-hash me-1"></i><?php echo htmlspecialchars($target['no_spk'] ?? '-'); ?>
+    </span>
+</td>
                                         <td class="text-center"><span class="badge bg-primary fs-6 rounded-pill"><?php echo htmlspecialchars($target['jumlah_unit']); ?></span></td>
                                         <td><?php echo date('d M Y', strtotime($target['created_at'])); ?></td>
                                         <td><?php echo date('d M Y', strtotime($target['tanggal_selesai'])); ?></td>
@@ -883,6 +891,11 @@ function getAllProductionMonths($pdo, $id_target) {
                             <?php foreach ($targets as $target): ?>
                             <div class="target-card">
                                 <h3 class="target-title"><?php echo htmlspecialchars($target['nama_permintaan']); ?></h3>
+                                <div class="mb-3">
+    <small class="text-muted">
+        <i class="bi bi-upc-scan me-1"></i>No. SPK: <strong><?php echo htmlspecialchars($target['no_spk'] ?? '-'); ?></strong>
+    </small>
+</div>
                                 <div class="target-info">
                                     <div class="info-item">
                                         <div class="info-value"><?php echo htmlspecialchars($target['jumlah_unit']); ?></div>

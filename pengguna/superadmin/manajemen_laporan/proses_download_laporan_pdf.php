@@ -41,8 +41,8 @@ try {
     // 5. Ambil Data Header (Info Target) - Sesuai Gambar 1
     $header_stmt = $pdo->prepare("
         SELECT 
-            pt.nama_permintaan, pt.jumlah_unit, pt.created_at, pt.tanggal_selesai,
-            mb.nama_barang, mk.nama_kategori
+            pt.nama_permintaan, pt.jumlah_unit, pt.created_at, pt.tanggal_selesai,pt.no_spk,
+            mb.nama_barang, mk.nama_kategori, mb.kode_barang
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
         LEFT JOIN master_kategori mk ON mb.id_kategori = mk.id_kategori
@@ -237,21 +237,25 @@ try {
             <table class="table-header">
                 <tr>
                     <th>Nama Barang</th>
-                    <td>' . htmlspecialchars($header_info['nama_barang']) . '</td>
+                    <td>' . htmlspecialchars($header_info['nama_barang']) . ' (' . htmlspecialchars($header_info['kode_barang']) . ')</td>
                     <th>Nama Target</th>
                     <td>' . htmlspecialchars($header_info['nama_permintaan']) . '</td>
                 </tr>
                 <tr>
                     <th>Kategori</th>
                     <td>' . htmlspecialchars($header_info['nama_kategori'] ?? 'N/A') . '</td>
-                    <th>Jumlah Unit</th>
-                    <td>' . htmlspecialchars($header_info['jumlah_unit']) . ' Unit</td>
+                    <th>No. SPK</th>
+                    <td>' . htmlspecialchars($header_info['no_spk']) . '</td>
                 </tr>
                 <tr>
+                    <th>Jumlah Unit</th>
+                    <td>' . htmlspecialchars($header_info['jumlah_unit']) . ' Unit</td>
                     <th>Tanggal Mulai</th>
                     <td>' . format_tanggal_indonesia($header_info['created_at']) . '</td>
+                </tr>
+                <tr>
                     <th>Tanggal Selesai</th>
-                    <td>' . format_tanggal_indonesia($header_info['tanggal_selesai']) . '</td>
+                    <td colspan="3">' . format_tanggal_indonesia($header_info['tanggal_selesai']) . '</td>
                 </tr>
             </table>
     ';

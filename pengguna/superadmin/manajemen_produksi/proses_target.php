@@ -18,6 +18,17 @@ if (isset($_POST['add_target'])) {
     $jumlah_unit = filter_input(INPUT_POST, 'jumlah_unit', FILTER_VALIDATE_INT);
     $status_prioritas = $_POST['prioritas']; // "Prioritas" atau "Normal"
     
+    // Ambil No SPK
+    $no_spk = trim($_POST['no_spk'] ?? '');
+
+    // Cek Unik No SPK
+    $stmt_cek = $pdo->prepare("SELECT id_target FROM production_targets WHERE no_spk = ?");
+    $stmt_cek->execute([$no_spk]);
+    if ($stmt_cek->rowCount() > 0) {
+        $_SESSION['flash_message'] = ['status' => 'danger', 'message' => 'Gagal: Nomor SPK sudah terdaftar.'];
+        header("Location: detail_barang.php?id=" . $id_barang);
+        exit;
+    }
     // Validasi dasar
     if (!$id_barang || !$nama_permintaan || !$jumlah_unit) {
         $_SESSION['flash_message'] = [
@@ -54,15 +65,16 @@ if (isset($_POST['add_target'])) {
         $pdo->beginTransaction();
         
         $stmt = $pdo->prepare("
-            INSERT INTO production_targets 
-            (id_barang, nama_permintaan, jumlah_unit, status, is_active, created_at, is_priority, priority_deadline, prioritas) 
-            VALUES 
-            (:id_barang, :nama_permintaan, :jumlah_unit, 'ongoing', 1, NOW(), :is_priority, :priority_deadline, :prioritas_text)
-        ");
+        INSERT INTO production_targets 
+        (id_barang, nama_permintaan, no_spk, jumlah_unit, status, is_active, created_at, is_priority, priority_deadline, prioritas) 
+        VALUES 
+        (:id_barang, :nama_permintaan, :no_spk, :jumlah_unit, 'ongoing', 1, NOW(), :is_priority, :priority_deadline, :prioritas_text)
+    ");
 
         $stmt->execute([
             ':id_barang' => $id_barang,
             ':nama_permintaan' => $nama_permintaan,
+            ':no_spk' => $no_spk,
             ':jumlah_unit' => $jumlah_unit,
             ':is_priority' => $is_priority,              // Menyimpan 1 atau 0
             ':priority_deadline' => $priority_deadline,    // Menyimpan tanggal atau NULL

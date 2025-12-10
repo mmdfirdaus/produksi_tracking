@@ -882,6 +882,13 @@ $targets = $target_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="col-lg-8 col-md-7">
                     <h1 class="product-title"><?php echo htmlspecialchars($barang['nama_barang']); ?></h1>
                     <div class="product-info">
+                                            <div class="info-item">
+                        <i class="bi bi-upc-scan info-icon"></i>
+                        <div>
+                            <strong>ID Barang:</strong>
+                            <span class="ms-2 badge bg-light text-dark border"><?php echo htmlspecialchars($barang['kode_barang']); ?></span>
+                        </div>
+                    </div>
                         <div class="info-item">
                             <i class="bi bi-tag-fill info-icon"></i>
                             <div>
@@ -940,6 +947,9 @@ $targets = $target_stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <h3 class="target-title">
                                     <?php echo htmlspecialchars($target['nama_permintaan']); ?>
                                 </h3>
+                                <small class="text-muted d-block mt-1" style="font-size: 0.85rem;">
+        <i class="bi bi-hash me-1"></i><?php echo htmlspecialchars($target['no_spk']); ?>
+    </small>
                                 <?php if($target['is_priority']): ?>
                                 <div>
                                     <span class="badge bg-danger"><i class="bi bi-star-fill me-1"></i> Prioritas</span>
@@ -1077,9 +1087,15 @@ $targets = $target_stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
                 <div class="modal-body">
                     <input type="hidden" name="id_barang" value="<?php echo $id_barang; ?>">
+                    
                     <div class="mb-3">
                         <label class="form-label">Nama Permintaan / Target</label>
                         <input type="text" class="form-control" name="nama_permintaan" placeholder="Contoh: Produksi Oktober 2025" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">No. SPK / ID Target</label>
+                        <input type="text" class="form-control" name="no_spk" placeholder="Contoh: SPK-2025-001" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Jumlah Unit</label>

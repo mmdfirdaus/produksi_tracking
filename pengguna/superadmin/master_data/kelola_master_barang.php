@@ -769,6 +769,10 @@ try {
                         <input type="text" class="form-control form-control-modern" name="nama_barang" required>
                     </div>
                     <div class="mb-3">
+    <label class="form-label form-label-modern">ID Barang / Kode Unik</label>
+    <input type="text" class="form-control form-control-modern" name="kode_barang" placeholder="Contoh: BRG-001" required>
+</div>
+                    <div class="mb-3">
                         <label class="form-label form-label-modern">Kategori</label>
                         <select class="form-control form-control-modern" name="id_kategori" required>
                             <option value="">-- Pilih Kategori --</option>
@@ -823,6 +827,10 @@ try {
                         <label class="form-label form-label-modern">Nama Barang</label>
                         <input type="text" class="form-control form-control-modern" name="nama_barang" value="<?php echo htmlspecialchars($barang['nama_barang']); ?>" required>
                     </div>
+                    <div class="mb-3">
+    <label class="form-label form-label-modern">ID Barang / Kode Unik</label>
+    <input type="text" class="form-control form-control-modern" name="kode_barang" value="<?php echo htmlspecialchars($barang['kode_barang']); ?>" required>
+</div>
                     <div class="mb-3">
                         <label class="form-label form-label-modern">Kategori</label>
                         <select class="form-control form-control-modern" name="id_kategori" required>

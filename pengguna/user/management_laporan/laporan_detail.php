@@ -31,7 +31,7 @@ function getAllProductionMonths($pdo, $id_target) {
 
 try {
     // Ambil informasi barang untuk judul
-    $stmt_barang = $pdo->prepare("SELECT nama_barang FROM master_barang WHERE id_barang = ?");
+    $stmt_barang = $pdo->prepare("SELECT nama_barang, kode_barang FROM master_barang WHERE id_barang = ?");
     $stmt_barang->execute([$id_barang]);
     $barang = $stmt_barang->fetch(PDO::FETCH_ASSOC);
 
@@ -44,7 +44,7 @@ try {
     $params = [':id_barang' => $id_barang];
 
     if (!empty($search_query)) {
-        $base_sql .= " AND nama_permintaan LIKE :search";
+        $base_sql .= " AND (nama_permintaan LIKE :search OR no_spk LIKE :search)";
         $params[':search'] = "%" . $search_query . "%";
     }
 
@@ -1017,13 +1017,18 @@ try {
             </div>
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <h2 class="h4 text-muted mb-0">Untuk Barang: <strong class="text-primary"><?php echo htmlspecialchars($barang['nama_barang']); ?></strong></h2>
+                    <h2 class="h4 text-muted mb-0">
+    Barang: <strong class="text-primary"><?php echo htmlspecialchars($barang['nama_barang']); ?></strong>
+    <span class="badge bg-light text-dark border ms-2" style="font-size: 0.9rem; font-weight: normal;">
+        <i class="bi bi-upc-scan me-1"></i><?php echo htmlspecialchars($barang['kode_barang']); ?>
+    </span>
+</h2>
                 </div>
                 <form action="" method="GET" class="search-container">
                     <input type="hidden" name="id_barang" value="<?php echo $id_barang; ?>">
                     <div class="d-flex gap-2">
                         <input type="text" class="form-control search-input" name="search"
-                            placeholder="🔍 Cari nama target..." value="<?php echo htmlspecialchars($search_query); ?>">
+                            placeholder="🔍 Cari nama target atau No. SPK..." value="<?php echo htmlspecialchars($search_query); ?>">
                         <button class="btn search-btn" type="submit"><i class="bi bi-search"></i></button>
                     </div>
                 </form>
@@ -1071,7 +1076,7 @@ try {
                             <tr>
                                 <th>No</th>
                                 <th>Nama Permintaan / Target</th>
-                                <th class="text-center">Unit</th>
+                                <th>No. SPK</th> <th class="text-center">Unit</th>
                                 <th>Tanggal Dibuat</th>
                                 <th>Tanggal Selesai</th>
                                 <th class="text-center">Durasi</th>
@@ -1083,6 +1088,11 @@ try {
                             <tr>
                                 <td><strong><?php echo $no++; ?></strong></td>
                                 <td><strong><?php echo htmlspecialchars($target['nama_permintaan']); ?></strong></td>
+                                <td>
+    <span class="badge bg-light text-dark border">
+        <i class="bi bi-hash me-1"></i><?php echo htmlspecialchars($target['no_spk'] ?? '-'); ?>
+    </span>
+</td>
                                 <td class="text-center"><span class="badge bg-primary fs-6 rounded-pill"><?php echo number_format($target['jumlah_unit']); ?></span></td>
                                 <td><?php echo date('d M Y', strtotime($target['created_at'])); ?></td>
                                 <td><?php echo date('d M Y', strtotime($target['tanggal_selesai'])); ?></td>
@@ -1129,6 +1139,11 @@ try {
                     <?php foreach ($targets as $target): ?>
                     <div class="target-card">
                         <h3 class="target-title"><?php echo htmlspecialchars($target['nama_permintaan']); ?></h3>
+                        <div class="mb-3">
+    <small class="text-muted">
+        <i class="bi bi-upc-scan me-1"></i>No. SPK: <strong><?php echo htmlspecialchars($target['no_spk'] ?? '-'); ?></strong>
+    </small>
+</div>
                         <div class="target-info">
                             <div class="info-item">
                                 <div class="info-value"><?php echo number_format($target['jumlah_unit']); ?></div>
