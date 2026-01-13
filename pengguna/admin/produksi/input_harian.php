@@ -1032,7 +1032,6 @@ html {
 }
 </style>
 
-<!-- Back to Top Button -->
 <button class="back-to-top" id="backToTopBtn" aria-label="Kembali ke atas">
     <i class="bi bi-arrow-up"></i>
 </button>
@@ -1158,7 +1157,13 @@ html {
         </div>
     <?php endif; ?>
 
-    <?php if (isset($_SESSION['success_message'])): ?>
+    <?php 
+    // Flag untuk pop-up ubah status
+    $show_status_prompt = false;
+    
+    if (isset($_SESSION['success_message'])): 
+        $show_status_prompt = true; // Set flag jadi true
+    ?>
         <div class="alert alert-success alert-modern" role="alert">
             <i class="bi bi-check-circle-fill me-2"></i>
             <?php echo $_SESSION['success_message']; unset($_SESSION['success_message']); ?>
@@ -1335,6 +1340,87 @@ html {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    
+    // --- FITUR: Deteksi Perubahan Data Input (Smart Dirty Check) ---
+    let formIsDirty = false;
+
+    // Fungsi untuk memeriksa ulang seluruh input
+    // Jika semua input kosong atau bernilai 0, maka form dianggap "bersih" (tidak dirty)
+    function updateDirtyState() {
+        let hasData = false;
+        // Selector khusus untuk input di halaman admin (name="jumlah_selesai[...]"), bukan laporan[...]
+        const inputFields = document.querySelectorAll('input[type="number"][name^="jumlah_selesai"]');
+        
+        for (let input of inputFields) {
+            // Cek jika value ada dan lebih dari 0
+            if (input.value !== '' && parseFloat(input.value) > 0) {
+                hasData = true;
+                break; // Cukup satu input terisi untuk dianggap dirty
+            }
+        }
+        formIsDirty = hasData;
+    }
+
+    // Terapkan event listener ke setiap input number di tabel
+    const inputFields = document.querySelectorAll('input[type="number"][name^="jumlah_selesai"]');
+    inputFields.forEach(input => {
+        input.addEventListener('input', updateDirtyState);
+        input.addEventListener('change', updateDirtyState);
+    });
+
+    // Cegah navigasi jika form kotor (belum disimpan)
+    document.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Kecualikan link yang memang untuk aksi aman
+            if (formIsDirty && 
+                !this.classList.contains('btn-danger') && 
+                !this.hasAttribute('data-bs-toggle') && 
+                this.getAttribute('href') !== '#') {
+                
+                e.preventDefault(); // Batalkan navigasi
+                const targetUrl = this.getAttribute('href');
+
+                Swal.fire({
+                    title: 'Data Belum Disimpan!',
+                    text: "Anda memiliki input laporan harian yang belum disimpan. Jika Anda meninggalkan halaman ini, data tersebut akan hilang. Yakin ingin keluar?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#f5576c',
+                    cancelButtonColor: '#667eea',
+                    confirmButtonText: 'Ya, Keluar',
+                    cancelButtonText: 'Batal, Saya Simpan Dulu'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        formIsDirty = false; // Reset flag agar bisa navigasi
+                        window.location.href = targetUrl;
+                    }
+                });
+            }
+        });
+    });
+    // --- AKHIR FITUR SMART DIRTY CHECK ---
+
+    // --- FITUR: Prompt Ubah Status Setelah Sukses ---
+    <?php if ($show_status_prompt && $header_info['status_pengerjaan'] == 'Sedang Dikerjakan'): ?>
+        setTimeout(() => {
+            Swal.fire({
+                title: 'Laporan Tersimpan!',
+                text: "Anda telah berhasil menyimpan laporan harian. Apakah Anda ingin mengubah status pengerjaan (misalnya menjadi Pending) sekarang?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#667eea',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Ubah Status',
+                cancelButtonText: 'Tidak, Tetap Lanjut'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    showChangeStatusModal(<?php echo $id_target; ?>, <?php echo $id_alur; ?>, '<?php echo htmlspecialchars($header_info['status_pengerjaan']); ?>');
+                }
+            });
+        }, 1000);
+    <?php endif; ?>
+    // --- AKHIR FITUR ---
+
     // Date picker setup
     const tanggalInput = document.getElementById('tanggal_laporan');
     const btnHariIni = document.getElementById('btnHariIni');
@@ -1360,7 +1446,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }); 
     }
 
-    // --- MULAI KODE BARU UNTUK BACK TO TOP ---
+    // Back to Top Button
     const backToTopBtn = document.getElementById('backToTopBtn');
 
     if (backToTopBtn) {
@@ -1379,7 +1465,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-    // --- AKHIR KODE BARU UNTUK BACK TO TOP ---
 
     // Fungsi helper untuk menampilkan modal validasi
     function tampilkanPesanValidasi(pesan) {
@@ -1429,10 +1514,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Event listener untuk tombol konfirmasi
+    // Event listener untuk tombol konfirmasi simpan
     const tombolKonfirmasi = document.getElementById('tombolKonfirmasiSimpan');
     if (tombolKonfirmasi) {
         tombolKonfirmasi.addEventListener('click', function() {
+            // Reset dirty form flag karena kita memang mau submit
+            formIsDirty = false;
+
             const submitBtn = form.querySelector('button[type="submit"]');
             if (submitBtn) {
                 submitBtn.innerHTML = '<span class="loading-spinner me-2"></span>Menyimpan...';
@@ -1592,6 +1680,7 @@ function updateStatusAPI(id_target, id_alur, status) {
     formData.append('id_alur', id_alur);
     formData.append('status', status);
 
+    // Pastikan path ke file proses update status sudah benar
     fetch('../../superadmin/manajemen_produksi/proses_update_status_pengerjaan.php', {
         method: 'POST',
         body: formData

@@ -16,11 +16,6 @@ $limit_list = 5; // Kita tampilkan 5 list
 $deadline_terdekat_display = "Tidak ada";
 
 try {
-    // ... [SEMUA QUERY PHP DARI LANGKAH SEBELUMNYA TETAP SAMA] ...
-    // =================================================================
-    // || QUERY KPI GLOBAL (TANPA FILTER HAK AKSES) ||
-    // =================================================================
-
     // 1. Total Target On Going (Global Scope)
     $sql_ongoing = "SELECT COUNT(id_target) FROM production_targets 
                     WHERE status = 'ongoing' AND is_active = 1";
@@ -66,12 +61,12 @@ try {
     }
     
     // =================================================================
-    // || QUERY LIST GLOBAL (TANPA FILTER HAK AKSES) ||
+    // || QUERY LIST GLOBAL (UPDATE: TAMBAH SPK) ||
     // =================================================================
 
-    // 5. Query untuk Pop-up Deadline (Global)
+    // 5. Query untuk Pop-up Deadline (Global) - [UPDATE: Tambah pt.no_spk]
     $sql_deadline = "
-        SELECT pt.id_target, mb.nama_barang, pt.nama_permintaan, pt.tanggal_selesai,
+        SELECT pt.id_target, pt.no_spk, mb.nama_barang, pt.nama_permintaan, pt.tanggal_selesai,
                DATEDIFF(pt.tanggal_selesai, CURDATE()) AS sisa_hari
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
@@ -83,37 +78,31 @@ try {
     $stmt_deadline->execute();
     $data_deadline = $stmt_deadline->fetchAll(PDO::FETCH_ASSOC);
 
-    // 6. Query untuk "Terakhir Kali Diinput" (Global) - [DIUBAH]
-    // Query ini diubah untuk hanya menampilkan 1 data unik per target berdasarkan input terakhir
+    // 6. Query untuk "Terakhir Kali Diinput" (Global) - [UPDATE: Tambah pt.no_spk]
     $sql_terakhir_input = "
             SELECT
                 pt.id_target,
+                pt.no_spk, 
                 mb.nama_barang,
                 pt.nama_permintaan,
                 lh.created_at,
                 ma.nama_alur,
                 lh.jumlah_selesai
             FROM (
-                -- 1. Temukan id_laporan (PK) terbaru untuk setiap id_target
                 SELECT 
                     tm.id_target,
                     MAX(lh.id_laporan) AS max_id_laporan
                 FROM laporan_harian lh
                 JOIN target_material tm ON lh.id_material = tm.id_material
-                -- PERUBAHAN BARU: Join ke production_targets di dalam subquery
                 JOIN production_targets pt_inner ON tm.id_target = pt_inner.id_target
-                WHERE pt_inner.status = 'ongoing' -- Filter target 'ongoing' di sini
+                WHERE pt_inner.status = 'ongoing' 
                 GROUP BY tm.id_target
             ) AS latest_reports
-            -- 2. Join kembali untuk mendapatkan detail laporan terbaru itu
             JOIN laporan_harian lh ON lh.id_laporan = latest_reports.max_id_laporan
-            -- 3. Join untuk mendapatkan detail target, barang, dan alur
             JOIN target_material tm ON lh.id_material = tm.id_material
             JOIN production_targets pt ON tm.id_target = pt.id_target
             JOIN master_barang mb ON pt.id_barang = mb.id_barang
             JOIN master_alur ma ON tm.id_alur = ma.id_alur
-            -- Filter 'ongoing' tidak diperlukan lagi di sini karena sudah di subquery
-            -- 4. Urutkan berdasarkan waktu laporan terbaru
             ORDER BY lh.created_at DESC
             LIMIT ?
     ";
@@ -122,10 +111,11 @@ try {
     $stmt_terakhir_input->execute();
     $data_terakhir_input = $stmt_terakhir_input->fetchAll(PDO::FETCH_ASSOC);
 
-    // 7. Query untuk "Target Terhenti" (Global)
+    // 7. Query untuk "Target Terhenti" (Global) - [UPDATE: Tambah pt.no_spk]
     $sql_terhenti = "
         SELECT
             pt.id_target,
+            pt.no_spk,
             mb.nama_barang,
             pt.nama_permintaan,
             MAX(lh.created_at) AS last_report_time,
@@ -135,7 +125,7 @@ try {
         LEFT JOIN target_material tm ON pt.id_target = tm.id_target
         LEFT JOIN laporan_harian lh ON tm.id_material = lh.id_material
         WHERE pt.status = 'ongoing' AND pt.is_active = 1
-        GROUP BY pt.id_target, mb.nama_barang, pt.nama_permintaan, pt.created_at
+        GROUP BY pt.id_target, pt.no_spk, mb.nama_barang, pt.nama_permintaan, pt.created_at
         HAVING days_stalled > 1
         ORDER BY days_stalled DESC, last_report_time ASC
         LIMIT ?
@@ -152,6 +142,7 @@ try {
 ?>
 
 <style>
+/* ... [STYLE CSS TETAP SAMA SEPERTI SEBELUMNYA] ... */
 :root {
     --primary-color: #2c3e50;
     --primary-light: #34495e;
@@ -609,6 +600,9 @@ body {
                                         <a href="management_produksi/material.php?id_target=<?php echo $item['id_target']; ?>">
                                             <?php echo htmlspecialchars($item['nama_barang']); ?>
                                         </a>
+                                        <div class="text-muted small">
+                                            <i class="fas fa-hashtag me-1"></i>SPK: <?php echo htmlspecialchars($item['no_spk'] ?? '-'); ?>
+                                        </div>
                                         <div class="text-muted">
                                             <?php echo htmlspecialchars($item['nama_permintaan']); ?>
                                         </div>
@@ -655,6 +649,9 @@ body {
                                         <a href="management_produksi/material.php?id_target=<?php echo $item['id_target']; ?>">
                                             <?php echo htmlspecialchars($item['nama_barang']); ?>
                                         </a>
+                                        <div class="text-muted small">
+                                            <i class="fas fa-hashtag me-1"></i>SPK: <?php echo htmlspecialchars($item['no_spk'] ?? '-'); ?>
+                                        </div>
                                         <div class="text-muted">
                                             <?php echo htmlspecialchars($item['nama_permintaan']); ?>
                                         </div>
@@ -836,7 +833,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <strong>${target.nama_barang}</strong> (${target.nama_permintaan})
                         <br>
                         <small class="text-muted">
-                            ID: ${target.id_target} | 
+                            <i class="fas fa-hashtag me-1"></i>SPK: ${target.no_spk || '-'} |
                             Deadline: ${new Date(target.tanggal_selesai).toLocaleDateString('id-ID', {
                                 day: '2-digit', month: 'long', year: 'numeric'
                             })}

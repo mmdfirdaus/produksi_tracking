@@ -25,8 +25,12 @@ if (isset($_POST['add_target'])) {
     $stmt_cek = $pdo->prepare("SELECT id_target FROM production_targets WHERE no_spk = ?");
     $stmt_cek->execute([$no_spk]);
     if ($stmt_cek->rowCount() > 0) {
+        // [MODIFIKASI UX] Kirim parameter error_spk ke URL
+        // Pesan flash tetap ada sebagai fallback
         $_SESSION['flash_message'] = ['status' => 'danger', 'message' => 'Gagal: Nomor SPK sudah terdaftar.'];
-        header("Location: detail_barang.php?id=" . $id_barang);
+        
+        // Redirect dengan parameter tambahan 'error_spk'
+        header("Location: detail_barang.php?id=" . $id_barang . "&error_spk=" . urlencode($no_spk));
         exit;
     }
     // Validasi dasar

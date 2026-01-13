@@ -3,11 +3,9 @@ session_start();
 header('Content-Type: application/json');
 include '../../system/database_connection.php';
 
-// 1. OTENTIKASI (Sama seperti kode lama Anda)
-// Tetap menggunakan otentikasi yang lebih ketat dari kode Anda.
+// 1. OTENTIKASI
 if (!isset($_SESSION["loggedin"]) || $_SESSION["loggedin"] !== true || $_SESSION["role"] !== 'superadmin') {
     http_response_code(403);
-    // Menggunakan format respons baru agar konsisten
     echo json_encode(['status' => 'error', 'message' => 'Akses ditolak']);
     exit;
 }
@@ -17,16 +15,14 @@ $sql = "";
 $params = [];
 
 // 2. LOGIKA BARU UNTUK DASHBOARD (menggunakan parameter `filter`)
-// Blok ini menangani permintaan dari card di dashboard baru.
 if (isset($_GET['filter'])) {
     $filter = $_GET['filter'];
 
-    // Menyiapkan query dasar yang mengambil kolom sesuai kebutuhan modal di dashboard
-    // Saya menggunakan alias (AS) agar nama kolomnya cocok dengan yang diharapkan JavaScript baru
-    // pt.jumlah_unit AS jumlah_target -> Mengganti nama kolom saat data dikirim
-    // pt.is_priority AS prioritas -> Mengganti nama kolom saat data dikirim
+    // UPDATE BARU: Menambahkan pt.no_spk dan memastikan pt.id_barang terpanggil
     $base_sql = "SELECT 
                     pt.id_target, 
+                    pt.id_barang,
+                    pt.no_spk, 
                     mb.nama_barang, 
                     pt.jumlah_unit AS jumlah_target, 
                     pt.status, 
@@ -35,22 +31,19 @@ if (isset($_GET['filter'])) {
                  JOIN master_barang mb ON pt.id_barang = mb.id_barang";
 
     if ($filter == 'berjalan') {
-        // Logika 'berjalan' dari dashboard disesuaikan dengan skema Anda: status = 'ongoing' dan is_active = 1
         $sql = $base_sql . " WHERE pt.status = 'ongoing' AND pt.is_active = 1 ORDER BY pt.id_target DESC";
     } elseif ($filter == 'prioritas') {
-        // Logika 'prioritas' dari dashboard disesuaikan dengan skema Anda: is_priority = 1, status = 'ongoing', dan is_active = 1
         $sql = $base_sql . " WHERE pt.is_priority = 1 AND pt.status = 'ongoing' AND pt.is_active = 1 ORDER BY pt.priority_deadline ASC";
     }
 
-// 3. LOGIKA LAMA ANDA DIPERTAHANKAN (menggunakan parameter `type`)
-// Jika tidak ada parameter 'filter', kode akan memeriksa parameter 'type' seperti sebelumnya.
+// 3. LOGIKA LAMA (menggunakan parameter `type`)
 } elseif (isset($_GET['type'])) {
     $type = $_GET['type'];
 
-    // Semua 'case' dari kode lama Anda ada di sini, tidak diubah sama sekali.
     switch ($type) {
         case 'priority':
-            $sql = "SELECT pt.id_target, pt.id_barang, pt.nama_permintaan, mb.nama_barang, pt.priority_deadline
+            // UPDATE BARU: Menambahkan pt.no_spk
+            $sql = "SELECT pt.id_target, pt.id_barang, pt.no_spk, pt.nama_permintaan, mb.nama_barang, pt.priority_deadline
                     FROM production_targets pt
                     JOIN master_barang mb ON pt.id_barang = mb.id_barang
                     WHERE pt.status = 'ongoing' AND pt.is_active = 1 AND pt.is_priority = 1
@@ -58,7 +51,8 @@ if (isset($_GET['filter'])) {
             break;
 
         case 'pending':
-            $sql = "SELECT pt.id_target, pt.id_barang, pt.nama_permintaan, mb.nama_barang
+            // UPDATE BARU: Menambahkan pt.no_spk
+            $sql = "SELECT pt.id_target, pt.id_barang, pt.no_spk, pt.nama_permintaan, mb.nama_barang
                     FROM production_targets pt
                     JOIN master_barang mb ON pt.id_barang = mb.id_barang
                     WHERE pt.status = 'ongoing' AND pt.is_active = 1 AND (
@@ -76,21 +70,24 @@ if (isset($_GET['filter'])) {
             break;
 
         case 'stalled':
+            // UPDATE BARU: Menambahkan pt.no_spk di SELECT dan GROUP BY
+            // Penting: GROUP BY harus menyertakan no_spk agar query valid
             $sql = "SELECT * FROM (
-                        SELECT pt.id_target, pt.id_barang, pt.nama_permintaan, mb.nama_barang, MAX(lh.tanggal_laporan) AS last_report
+                        SELECT pt.id_target, pt.id_barang, pt.no_spk, pt.nama_permintaan, mb.nama_barang, MAX(lh.tanggal_laporan) AS last_report
                         FROM production_targets pt
                         JOIN master_barang mb ON pt.id_barang = mb.id_barang
                         LEFT JOIN target_material tm ON pt.id_target = tm.id_target
                         LEFT JOIN laporan_harian lh ON tm.id_material = lh.id_material
                         WHERE pt.status = 'ongoing' AND pt.is_active = 1
-                        GROUP BY pt.id_target, pt.id_barang, pt.nama_permintaan, mb.nama_barang
+                        GROUP BY pt.id_target, pt.id_barang, pt.nama_permintaan, mb.nama_barang, pt.no_spk
                     ) AS sub
                     WHERE sub.last_report < CURDATE() - INTERVAL 3 DAY OR sub.last_report IS NULL
                     ORDER BY sub.last_report ASC";
             break;
 
         case 'archived':
-            $sql = "SELECT pt.id_target, pt.id_barang, pt.nama_permintaan, mb.nama_barang, pt.alasan_nonaktif, pt.created_at
+            // UPDATE BARU: Menambahkan pt.no_spk
+            $sql = "SELECT pt.id_target, pt.id_barang, pt.no_spk, pt.nama_permintaan, mb.nama_barang, pt.alasan_nonaktif, pt.created_at
                     FROM production_targets pt
                     JOIN master_barang mb ON pt.id_barang = mb.id_barang
                     WHERE pt.is_active = 0
@@ -102,26 +99,20 @@ if (isset($_GET['filter'])) {
             echo json_encode(['status' => 'error', 'message' => 'Tipe tidak valid']);
             exit;
     }
-// 4. PENANGANAN JIKA TIDAK ADA PARAMETER YANG SESUAI
 } else {
     http_response_code(400);
     echo json_encode(['status' => 'error', 'message' => 'Parameter tidak valid. Harap sediakan "filter" atau "type".']);
     exit;
 }
 
-// 5. EKSEKUSI QUERY DAN PENGIRIMAN DATA
-// Bagian ini dieksekusi untuk semua kondisi di atas (baik 'filter' maupun 'type').
+// 4. EKSEKUSI
 try {
     if (!empty($sql)) {
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Menggunakan format respons baru yang lebih deskriptif
-        // Ini tidak akan merusak kode JS lama Anda selama JS tersebut mengakses `response.data`
         echo json_encode(['status' => 'success', 'data' => $results]);
     } else {
-        // Ini terjadi jika ada 'filter' yang tidak cocok (misal: filter=abc)
         http_response_code(400);
         echo json_encode(['status' => 'error', 'message' => 'Filter tidak valid.']);
     }

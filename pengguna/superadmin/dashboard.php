@@ -18,9 +18,9 @@ try {
     $initial_priority_targets = $pdo->query("SELECT COUNT(*) FROM production_targets WHERE status = 'ongoing' AND is_active = 1 AND is_priority = 1")->fetchColumn();
     $initial_completed_reports = $pdo->query("SELECT COUNT(*) FROM production_targets WHERE status = 'Selesai'")->fetchColumn();
     
-    // 2. Daftar Target Prioritas (untuk list di bawah)
+    // 2. Daftar Target Prioritas (untuk list di bawah) - UPDATED: ADDED no_spk
     $priority_list_stmt = $pdo->query("
-    SELECT pt.id_target, pt.id_barang, pt.nama_permintaan, mb.nama_barang, pt.priority_deadline
+    SELECT pt.id_target, pt.id_barang, pt.no_spk, pt.nama_permintaan, mb.nama_barang, pt.priority_deadline
     FROM production_targets pt
     JOIN master_barang mb ON pt.id_barang = mb.id_barang
     WHERE pt.status = 'ongoing' AND pt.is_active = 1 AND pt.is_priority = 1
@@ -29,7 +29,7 @@ try {
 ");
     $priority_list = $priority_list_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 3. Data untuk Grafik Status Target (default 'Semua Waktu')
+    // 3. Data untuk Grafik Status Target
     $status_distribution_stmt = $pdo->query("
         SELECT status, COUNT(*) as count 
         FROM production_targets 
@@ -44,9 +44,9 @@ try {
         $chart_values[] = $data['count'];
     }
 
-    // 4. Query untuk Target Menunggu Verifikasi
+    // 4. Query untuk Target Menunggu Verifikasi - UPDATED: ADDED no_spk
     $pending_verification_stmt = $pdo->query("
-        SELECT pt.id_target, pt.id_barang, pt.nama_permintaan, mb.nama_barang
+        SELECT pt.id_target, pt.id_barang, pt.no_spk, pt.nama_permintaan, mb.nama_barang
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
         WHERE pt.status = 'ongoing'
@@ -72,12 +72,13 @@ try {
     ");
     $pending_verification_list = $pending_verification_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 5. Query untuk Target Terhenti
+    // 5. Query untuk Target Terhenti - UPDATED: ADDED no_spk
     $stalled_targets_stmt = $pdo->query("
         SELECT * FROM (
             SELECT
                 pt.id_target,
                 pt.id_barang,
+                pt.no_spk,
                 pt.nama_permintaan,
                 mb.nama_barang,
                 MAX(lh.tanggal_laporan) AS last_report
@@ -89,7 +90,7 @@ try {
             WHERE
                 pt.status = 'ongoing'
             GROUP BY
-                pt.id_target, pt.id_barang, pt.nama_permintaan, mb.nama_barang
+                pt.id_target, pt.id_barang, pt.no_spk, pt.nama_permintaan, mb.nama_barang
         ) AS sub
         WHERE sub.last_report < CURDATE() - INTERVAL 3 DAY OR sub.last_report IS NULL
         ORDER BY sub.last_report ASC
@@ -97,9 +98,9 @@ try {
     ");
     $stalled_targets_list = $stalled_targets_stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // 6. Query untuk Target Nonaktif (Arsip)
+    // 6. Query untuk Target Nonaktif (Arsip) - UPDATED: ADDED no_spk
     $archived_targets_stmt = $pdo->query("
-        SELECT pt.id_target, pt.id_barang, pt.nama_permintaan, mb.nama_barang, pt.alasan_nonaktif, pt.created_at
+        SELECT pt.id_target, pt.id_barang, pt.no_spk, pt.nama_permintaan, mb.nama_barang, pt.alasan_nonaktif, pt.created_at
         FROM production_targets pt
         JOIN master_barang mb ON pt.id_barang = mb.id_barang
         WHERE pt.is_active = 0
@@ -119,7 +120,7 @@ try {
 
 
 <style>
-/* Modern Dashboard Styles (Existing styles from your old code) */
+/* Modern Dashboard Styles */
 :root {
     --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
@@ -180,43 +181,6 @@ body {
     opacity: 0.9;
     position: relative;
     z-index: 1;
-}
-
-/* CSS for FILTERS */
-.filter-container {
-    background-color: #fff;
-    padding: 1rem 1.5rem;
-    border-radius: var(--border-radius);
-    box-shadow: var(--card-shadow);
-    margin-bottom: 2rem;
-    display: flex;
-    align-items: center;
-    gap: 1.5rem;
-}
-
-.filter-label {
-    font-weight: 600;
-    color: #4a5568;
-    margin: 0;
-}
-
-.filter-buttons .btn {
-    border-radius: 20px;
-    font-weight: 500;
-    padding: 0.5rem 1.2rem;
-    transition: all 0.2s ease-in-out;
-    border: 1px solid #e2e8f0;
-    background-color: #f8fafc;
-    color: #475569;
-}
-
-.filter-buttons .btn.active,
-.filter-buttons .btn:hover {
-    background: var(--primary-gradient);
-    color: white;
-    border-color: transparent;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
 }
 
 /* Modern Stats Cards */
@@ -652,12 +616,15 @@ body {
                     <?php else: ?>
                         <div class="modern-list">
                             <?php foreach ($priority_list as $item): ?>
-                                <a href="manajemen_produksi/detail_barang.php?id=<?php echo $item['id_barang']; ?>" class="modern-list-item priority">
+                                <a href="manajemen_produksi/alur_produksi.php?id_target=<?php echo $item['id_target']; ?>&id_barang=<?php echo $item['id_barang']; ?>" class="modern-list-item priority">
                                     <div class="list-item-header">
                                         <h4 class="list-item-title"><?php echo htmlspecialchars($item['nama_permintaan']); ?></h4>
                                         <span class="list-item-date">Tenggat: <?php echo date('d M Y', strtotime($item['priority_deadline'])); ?></span>
                                     </div>
-                                    <p class="list-item-description">Untuk barang: <strong><?php echo htmlspecialchars($item['nama_barang']); ?></strong></p>
+                                    <p class="list-item-description">
+                                        Untuk barang: <strong><?php echo htmlspecialchars($item['nama_barang']); ?></strong><br>
+                                        <small class="text-muted"><i class="bi bi-hash"></i> SPK: <?php echo htmlspecialchars($item['no_spk'] ?? '-'); ?></small>
+                                    </p>
                                 </a>
                             <?php endforeach; ?>
                         </div>
@@ -688,7 +655,10 @@ body {
                                         <h4 class="list-item-title"><?php echo htmlspecialchars($item['nama_permintaan']); ?></h4>
                                         <span class="priority-badge">Ready</span>
                                     </div>
-                                    <p class="list-item-description">Semua komponen untuk <strong><?php echo htmlspecialchars($item['nama_barang']); ?></strong> telah terpenuhi. Klik untuk verifikasi.</p>
+                                    <p class="list-item-description">
+                                        Semua komponen untuk <strong><?php echo htmlspecialchars($item['nama_barang']); ?></strong> telah terpenuhi. Klik untuk verifikasi.<br>
+                                        <small class="text-muted"><i class="bi bi-hash"></i> SPK: <?php echo htmlspecialchars($item['no_spk'] ?? '-'); ?></small>
+                                    </p>
                                 </a>
                             <?php endforeach; ?>
                         </div>
@@ -725,7 +695,10 @@ body {
                                             <?php endif; ?>
                                         </span>
                                     </div>
-                                    <p class="list-item-description">Target untuk <strong><?php echo htmlspecialchars($item['nama_barang']); ?></strong> perlu diperiksa.</p>
+                                    <p class="list-item-description">
+                                        Target untuk <strong><?php echo htmlspecialchars($item['nama_barang']); ?></strong> perlu diperiksa.<br>
+                                        <small class="text-muted"><i class="bi bi-hash"></i> SPK: <?php echo htmlspecialchars($item['no_spk'] ?? '-'); ?></small>
+                                    </p>
                                 </a>
                             <?php endforeach; ?>
                         </div>
@@ -750,13 +723,14 @@ body {
                     <?php else: ?>
                         <div class="modern-list">
                             <?php foreach ($archived_targets_list as $item): ?>
-                                <a href="manajemen_produksi/detail_barang.php?id=<?php echo $item['id_barang']; ?>" class="modern-list-item archived">
+                                <a href="manajemen_produksi/arsip_target.php?id_barang=<?php echo $item['id_barang']; ?>" class="modern-list-item archived">
                                     <div class="list-item-header">
                                         <h4 class="list-item-title"><?php echo htmlspecialchars($item['nama_permintaan']); ?></h4>
                                     </div>
                                     <p class="list-item-description">
                                         Barang: <strong><?php echo htmlspecialchars($item['nama_barang']); ?></strong><br>
-                                        <small>Alasan: <?php echo htmlspecialchars($item['alasan_nonaktif'] ?: 'Tidak ada alasan'); ?></small>
+                                        <small>Alasan: <?php echo htmlspecialchars($item['alasan_nonaktif'] ?: 'Tidak ada alasan'); ?></small><br>
+                                        <small class="text-muted"><i class="bi bi-hash"></i> SPK: <?php echo htmlspecialchars($item['no_spk'] ?? '-'); ?></small>
                                     </p>
                                 </a>
                             <?php endforeach; ?>
@@ -791,15 +765,14 @@ body {
             <i class="fas fa-spinner fa-spin"></i> Memuat data...
         </p>
         <div class="table-responsive" id="modal-table-container" style="display: none;">
-            <table class="table table-hover">
+            <table class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th>ID Target</th>
-                        <th>Nama Barang</th>
+                        <th>ID</th>
+                        <th>No SPK</th> <th>Nama Barang</th>
                         <th>Jumlah</th>
                         <th>Status</th>
-                        <th>Prioritas</th>
-                    </tr>
+                        <th>Aksi</th> </tr>
                 </thead>
                 <tbody id="target-list-tbody">
                     </tbody>
@@ -832,7 +805,6 @@ body {
   </div>
 </div>
 
-<!-- TOMBOL BACK TO TOP -->
 <button class="back-to-top" id="backToTop" onclick="scrollToTop()">
     <i class="bi bi-arrow-up"></i>
 </button>
@@ -881,24 +853,28 @@ $(document).ready(function() {
                         let priorityBadge = target.prioritas == 1 ? '<span class="badge bg-warning text-dark">Prioritas</span>' : '<span class="badge bg-secondary">Normal</span>';
                         let statusText = target.status.charAt(0).toUpperCase() + target.status.slice(1);
                         let statusBadge = `<span class="badge bg-info">${statusText}</span>`;
+                        let spk = target.no_spk ? target.no_spk : '-'; // UPDATED: Handle SPK
                         
+                        // UPDATED: Link ke Alur Produksi
+                        let actionBtn = `<a href="manajemen_produksi/alur_produksi.php?id_target=${target.id_target}&id_barang=${target.id_barang}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> Detail</a>`;
+
                         html += `
                             <tr>
                                 <td>${target.id_target}</td>
-                                <td>${target.nama_barang}</td>
+                                <td><strong>${spk}</strong></td> <td>${target.nama_barang}</td>
                                 <td>${target.jumlah_target}</td>
-                                <td>${statusBadge}</td>
-                                <td>${priorityBadge}</td>
+                                <td>${statusBadge} <br> ${priorityBadge}</td>
+                                <td>${actionBtn}</td>
                             </tr>
                         `;
                     });
                 } else {
-                    html = '<tr><td colspan="5" class="text-center">Tidak ada data ditemukan.</td></tr>';
+                    html = '<tr><td colspan="6" class="text-center">Tidak ada data ditemukan.</td></tr>';
                 }
                 $('#target-list-tbody').html(html);
             },
             error: function() {
-                 $('#target-list-tbody').html('<tr><td colspan="5" class="text-center text-danger">Gagal memuat data.</td></tr>');
+                 $('#target-list-tbody').html('<tr><td colspan="6" class="text-center text-danger">Gagal memuat data.</td></tr>');
             },
             complete: function() {
                 $('#modal-loading').hide();
@@ -1016,35 +992,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // JAVASCRIPT LOGIC FOR FILTERS
-    document.querySelectorAll('.filter-buttons .btn').forEach(button => {
-        button.addEventListener('click', function() {
-            document.querySelector('.filter-buttons .btn.active').classList.remove('active');
-            this.classList.add('active');
-            const period = this.getAttribute('data-period');
-            updateDashboardData(period);
-        });
-    });
-
-    function updateDashboardData(period) {
-        fetch(`api_get_filtered_dashboard_data.php?period=${period}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    console.error('API Error:', data.error);
-                    return;
-                }
-                
-                document.getElementById('priority-targets-stat').textContent = data.stats.priority_targets;
-                document.getElementById('completed-reports-stat').textContent = data.stats.completed_reports;
-
-                statusPieChart.data.labels = data.chart.labels;
-                statusPieChart.data.datasets[0].data = data.chart.values;
-                statusPieChart.update();
-            })
-            .catch(error => console.error('Error fetching dashboard data:', error));
-    }
-    
     // Modal Logic
     const lihatSemuaModal = document.getElementById('lihatSemuaModal');
     if (lihatSemuaModal) {
@@ -1065,8 +1012,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 data: { type: targetType },
                 dataType: 'json',
                 success: function(response) {
-                    if (response.error) {
-                        modalContent.innerHTML = `<div class="alert alert-danger">${response.error}</div>`;
+                    if (response.status === 'error') {
+                        modalContent.innerHTML = `<div class="alert alert-danger">${response.message}</div>`;
                         return;
                     }
 
@@ -1082,9 +1029,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         let detailText = `Untuk barang: <strong>${item.nama_barang}</strong>`;
                         let dateText = '';
                         let itemClass = '';
+                        let spk = item.no_spk ? item.no_spk : '-';
+                        let hrefLink = `manajemen_produksi/detail_barang.php?id=${item.id_barang}`;
 
-                        if (targetType === 'priority' && item.priority_deadline) {
-                            dateText = `<span class="list-item-date">Tenggat: ${new Date(item.priority_deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>`;
+                        if (targetType === 'priority') {
+                            // UPDATED: Link khusus Prioritas ke alur_produksi.php
+                            hrefLink = `manajemen_produksi/alur_produksi.php?id_target=${item.id_target}&id_barang=${item.id_barang}`; 
+                            if (item.priority_deadline) {
+                                dateText = `<span class="list-item-date">Tenggat: ${new Date(item.priority_deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>`;
+                            }
                             itemClass = 'priority';
                         } else if (targetType === 'stalled') {
                             itemClass = 'warning';
@@ -1098,12 +1051,17 @@ document.addEventListener('DOMContentLoaded', function () {
                             dateText = '<span class="priority-badge">Ready</span>';
                             itemClass = 'success';
                         } else if (targetType === 'archived') {
+                            // UPDATED: Link khusus Arsip ke arsip_target.php
+                            hrefLink = `manajemen_produksi/arsip_target.php?id_barang=${item.id_barang}`; 
                             itemClass = 'archived';
                             detailText = `Barang: <strong>${item.nama_barang}</strong><br><small>Alasan: ${item.alasan_nonaktif ? item.alasan_nonaktif : 'Tidak ada alasan'}</small>`;
                             dateText = `<span class="list-item-date">Diarsipkan pada: ${new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>`;
                         }
 
-                        html += `<a href="manajemen_produksi/detail_barang.php?id=${item.id_barang}" class="modern-list-item ${itemClass}">
+                        // UPDATED: Tambah SPK ke detailText
+                        detailText += `<br><small class="text-muted"><i class="bi bi-hash"></i> SPK: ${spk}</small>`;
+
+                        html += `<a href="${hrefLink}" class="modern-list-item ${itemClass}">
                                      <div class="list-item-header">
                                          <h4 class="list-item-title">${item.nama_permintaan}</h4>
                                          ${dateText}
@@ -1122,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Animation script
+    // Animation script...
     const observerOptions = {
         threshold: 0.1,
         rootMargin: '0px 0px -50px 0px'

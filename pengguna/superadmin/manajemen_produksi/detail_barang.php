@@ -1504,6 +1504,55 @@ $targets = $target_stmt->fetchAll(PDO::FETCH_ASSOC);
             }
         });
 
+// ==============================================================================
+        // [FITUR BARU] AUTO FOCUS & SWEETALERT UNTUK ERROR DUPLIKAT SPK
+        // ==============================================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const errorSpk = urlParams.get('error_spk');
+
+        if (errorSpk) {
+            // 1. Buka Modal Tambah Target secara otomatis
+            const tambahModal = new bootstrap.Modal(document.getElementById('tambahTargetModal'));
+            tambahModal.show();
+
+            // 2. Isi nilai input SPK dengan nilai yang error tadi
+            const inputSpk = document.querySelector('input[name="no_spk"]');
+            if (inputSpk) {
+                inputSpk.value = errorSpk;
+                inputSpk.classList.add('is-invalid'); // Tambahkan border merah (class bootstrap)
+                
+                // Tambahkan pesan error di bawah input jika belum ada
+                let feedback = inputSpk.nextElementSibling;
+                if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+                    feedback = document.createElement('div');
+                    feedback.className = 'invalid-feedback';
+                    feedback.innerText = 'Nomor SPK ini sudah digunakan. Mohon ganti dengan yang lain.';
+                    inputSpk.parentNode.appendChild(feedback);
+                }
+            }
+
+            // 3. Tampilkan SweetAlert (Opsional, karena sudah ada modal terbuka & border merah)
+            // Jika Anda tetap ingin SweetAlert, uncomment baris di bawah ini:
+            /*
+            Swal.fire({
+                icon: 'error',
+                title: 'Duplikat SPK',
+                text: 'Nomor SPK "' + errorSpk + '" sudah ada di sistem.',
+                confirmButtonColor: '#d33',
+            });
+            */
+
+            // 4. Fokus ke input SPK setelah modal terbuka penuh
+            const modalEl = document.getElementById('tambahTargetModal');
+            modalEl.addEventListener('shown.bs.modal', function () {
+                if(inputSpk) inputSpk.focus();
+            }, {once:true}); // Event listener hanya jalan sekali
+
+            // 5. Bersihkan URL (Hapus parameter error_spk agar tidak muncul saat refresh)
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?id=' + urlParams.get('id');
+            window.history.replaceState({path: newUrl}, '', newUrl);
+        }
+
     });
 
     // JavaScript untuk menampilkan notifikasi dari session

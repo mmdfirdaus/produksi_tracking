@@ -21,15 +21,15 @@ $total_ongoing = 0;
 $total_selesai = 0;
 $total_prioritas = 0;
 $limit_list = 3;
-// PERUBAHAN: Menambahkan variabel default untuk deadline di card
+// Variabel default untuk deadline di card
 $deadline_terdekat_display = "Tidak ada";
 
 try {
-    // 1. Dapatkan semua alur yang diakses oleh admin ini (QUERY BARU YANG DIPERBAIKI)
+    // 1. Dapatkan semua alur yang diakses oleh admin ini
     $stmt_alurs = $pdo->prepare("
         SELECT ma.id_alur, ma.nama_alur, ma.urutan
         FROM master_alur ma
-        JOIN admin_tahapan_access ata ON ma.id_alur = ata.id_tahapan -- Langsung join ke admin_tahapan_access
+        JOIN admin_tahapan_access ata ON ma.id_alur = ata.id_tahapan 
         WHERE ata.id_user = :id_user
         ORDER BY ma.urutan
     ");
@@ -38,38 +38,25 @@ try {
     
     $admin_alur_ids = array_column($admin_alurs, 'id_alur');
 
-    // =================================================================
-    // || PERUBAHAN BAGIAN 1: QUERY KPI GLOBAL ||
-    // || Query ini sekarang tidak lagi menggunakan $admin_alur_ids ||
-    // =================================================================
-
     // 2. Query untuk KPI Cards (GLOBAL SCOPE)
-    // Total Target On Going (Global Scope)
-    // PERUBAHAN: Query disederhanakan, JOIN dan filter alur dihapus
     $sql_ongoing = "SELECT COUNT(id_target) FROM production_targets 
                     WHERE status = 'ongoing' AND is_active = 1";
     $stmt_ongoing = $pdo->prepare($sql_ongoing);
-    $stmt_ongoing->execute(); // Tidak perlu parameter $admin_alur_ids
+    $stmt_ongoing->execute();
     $total_ongoing = $stmt_ongoing->fetchColumn();
 
-    // Total Target Selesai (Global Scope)
-    // PERUBAHAN: Query disederhanakan, JOIN dan filter alur dihapus
     $sql_selesai = "SELECT COUNT(id_target) FROM production_targets 
                     WHERE status = 'Selesai'";
     $stmt_selesai = $pdo->prepare($sql_selesai);
-    $stmt_selesai->execute(); // Tidak perlu parameter $admin_alur_ids
+    $stmt_selesai->execute(); 
     $total_selesai = $stmt_selesai->fetchColumn();
 
-    // Total Target Prioritas (Global Scope)
-    // PERBAIKAN: Menambahkan pengecekan 'is_priority = 1' dan merapikan query
     $sql_prioritas = "SELECT COUNT(id_target) FROM production_targets WHERE (prioritas = 'Prioritas' OR is_priority = 1) AND status = 'ongoing' AND is_active = 1";
     $stmt_prioritas = $pdo->prepare($sql_prioritas);
-    $stmt_prioritas->execute(); // Tidak perlu parameter $admin_alur_ids
+    $stmt_prioritas->execute(); 
     $total_prioritas = $stmt_prioritas->fetchColumn();
     
-    // PERUBAHAN: Query baru untuk mendapatkan deadline prioritas terdekat (GLOBAL)
     if ($total_prioritas > 0) {
-        // PERBAIKAN: Menggunakan 'priority_deadline' dan logika 'OR'
         $stmt_deadline_card = $pdo->prepare("
             SELECT priority_deadline 
             FROM production_targets 
@@ -82,47 +69,28 @@ try {
         $stmt_deadline_card->execute();
         $deadline_terdekat = $stmt_deadline_card->fetchColumn();
         
-        // --- AWAL BLOK LOGIKA BARU ---
         if ($deadline_terdekat) {
-            // Buat objek DateTime untuk 'hari ini' (tanpa jam)
             $hari_ini = new DateTime('today');
-            
-            // Buat objek DateTime untuk 'tanggal deadline' (tanpa jam)
             $tanggal_deadline = new DateTime(date('Y-m-d', strtotime($deadline_terdekat)));
 
-            // Cek apakah deadline sudah terlewat
             if ($hari_ini > $tanggal_deadline) {
-                // Hitung selisih hari
                 $selisih = $hari_ini->diff($tanggal_deadline);
-                $hari_terlewat = $selisih->days; // Ambil total hari
-                
-                // Format pesan "Lewat X hari" dengan style merah
+                $hari_terlewat = $selisih->days; 
                 $deadline_terdekat_display = '<span style="color: #e74c3c; font-weight: bold;">Lewat ' . $hari_terlewat . ' hari</span>';
-
             } else {
-                // Jika belum terlewat, tampilkan tanggal seperti biasa
                 $deadline_terdekat_display = date('d M Y', strtotime($deadline_terdekat));
             }
         }
-        // --- AKHIR BLOK LOGIKA BARU ---
     }
     
-    // =================================================================
-    // || AKHIR PERUBAHAN BAGIAN 1 ||
-    // || Query selanjutnya (deadline modal, list, monitor) TETAP MENGGUNAKAN $admin_alur_ids ||
-    // =================================================================
-
     if (empty($admin_alur_ids)) {
-        // Admin tidak punya akses ke alur manapun
-        // Biarkan semua data $0 atau []
-        // KPI Global sudah terisi, jadi bagian ini hanya untuk data yang scoped
+        // Admin tidak punya akses
     } else {
         $placeholders = implode(',', array_fill(0, count($admin_alur_ids), '?'));
         
-        // 3. Query untuk Pop-up Deadline (Fitur #2) (QUERY DIPERBAIKI)
-        // INI TETAP SCOPED UNTUK ADMIN
+        // 3. Query untuk Pop-up Deadline (UPDATE: Tambah pt.no_spk)
         $sql_deadline = "
-            SELECT pt.id_target, mb.nama_barang, pt.nama_permintaan, pt.tanggal_selesai, -- Ganti customer -> nama_permintaan
+            SELECT pt.id_target, pt.no_spk, mb.nama_barang, pt.nama_permintaan, pt.tanggal_selesai, 
                    DATEDIFF(pt.tanggal_selesai, CURDATE()) AS sisa_hari
             FROM production_targets pt
             JOIN master_barang mb ON pt.id_barang = mb.id_barang
@@ -136,34 +104,32 @@ try {
         $stmt_deadline->execute($admin_alur_ids);
         $data_deadline = $stmt_deadline->fetchAll(PDO::FETCH_ASSOC);
 
-        // 4. Query untuk "Terakhir Kali Diinput" (Fitur #1) (QUERY BARU DIPERBAIKI)
-        // INI TETAP SCOPED UNTUK ADMIN
+        // 4. Query untuk "Terakhir Kali Diinput" (UPDATE: Tambah pt.no_spk)
         $sql_terakhir_input = "
             SELECT
                 pt.id_target,
+                pt.no_spk, 
                 mb.nama_barang,
                 pt.nama_permintaan,
                 lh.created_at,
                 ma.nama_alur,
-                lh.jumlah_selesai -- Menggunakan jumlah_selesai
+                lh.jumlah_selesai 
             FROM laporan_harian lh
-            JOIN target_material tm ON lh.id_material = tm.id_material -- JOIN ke target_material
-            JOIN production_targets pt ON tm.id_target = pt.id_target -- JOIN ke production_targets via tm
+            JOIN target_material tm ON lh.id_material = tm.id_material 
+            JOIN production_targets pt ON tm.id_target = pt.id_target 
             JOIN master_barang mb ON pt.id_barang = mb.id_barang
-            JOIN master_alur ma ON tm.id_alur = ma.id_alur -- JOIN ke master_alur via tm
-            WHERE tm.id_alur IN ($placeholders) -- Filter berdasarkan alur di target_material
-              AND pt.id_target IN (SELECT DISTINCT id_target FROM target_alur_status WHERE id_alur IN ($placeholders)) -- Pastikan target relevan dgn admin
-              AND pt.status = 'ongoing' -- <-- TAMBAHKAN BARIS INI
+            JOIN master_alur ma ON tm.id_alur = ma.id_alur 
+            WHERE tm.id_alur IN ($placeholders) 
+              AND pt.id_target IN (SELECT DISTINCT id_target FROM target_alur_status WHERE id_alur IN ($placeholders)) 
+              AND pt.status = 'ongoing' 
             ORDER BY lh.created_at DESC
             LIMIT ?
         ";
-        // Eksekusi query ini (binding manual tetap diperlukan)
         $stmt_terakhir_input = $pdo->prepare($sql_terakhir_input);
         $param_index = 1;
         foreach ($admin_alur_ids as $id_alur) {
             $stmt_terakhir_input->bindValue($param_index++, $id_alur);
         }
-        // Bind untuk subquery IN
          foreach ($admin_alur_ids as $id_alur) {
             $stmt_terakhir_input->bindValue($param_index++, $id_alur);
         }
@@ -171,11 +137,11 @@ try {
         $stmt_terakhir_input->execute();
         $data_terakhir_input = $stmt_terakhir_input->fetchAll(PDO::FETCH_ASSOC);
 
-        // 5. Query untuk "Target Terhenti" (Fitur #2) (QUERY BARU DIPERBAIKI)
-        // INI TETAP SCOPED UNTUK ADMIN
+        // 5. Query untuk "Target Terhenti" (UPDATE: Tambah pt.no_spk)
         $sql_terhenti = "
             SELECT
                 pt.id_target,
+                pt.no_spk,
                 mb.nama_barang,
                 pt.nama_permintaan,
                 MAX(lh.created_at) AS last_report_time,
@@ -184,15 +150,14 @@ try {
             JOIN master_barang mb ON pt.id_barang = mb.id_barang
             JOIN (SELECT DISTINCT id_target FROM target_alur_status WHERE id_alur IN ($placeholders)) AS admin_targets
                 ON pt.id_target = admin_targets.id_target
-            LEFT JOIN target_material tm ON pt.id_target = tm.id_target -- JOIN ke target_material dulu
-            LEFT JOIN laporan_harian lh ON tm.id_material = lh.id_material -- Baru JOIN ke laporan_harian
+            LEFT JOIN target_material tm ON pt.id_target = tm.id_target 
+            LEFT JOIN laporan_harian lh ON tm.id_material = lh.id_material 
             WHERE pt.status = 'ongoing' AND pt.is_active = 1
-            GROUP BY pt.id_target, mb.nama_barang, pt.nama_permintaan, pt.created_at
+            GROUP BY pt.id_target, pt.no_spk, mb.nama_barang, pt.nama_permintaan, pt.created_at
             HAVING days_stalled > 1
             ORDER BY days_stalled DESC, last_report_time ASC
             LIMIT ?
         ";
-        // Eksekusi query ini (binding manual tetap diperlukan)
         $stmt_terhenti = $pdo->prepare($sql_terhenti);
         $param_index_henti = 1;
         foreach ($admin_alur_ids as $id_alur) {
@@ -202,25 +167,23 @@ try {
         $stmt_terhenti->execute();
         $data_terhenti = $stmt_terhenti->fetchAll(PDO::FETCH_ASSOC);
 
-        // 6. Query untuk "Monitor Lini Produksi" (Fitur #3)
-        // INI TETAP SCOPED UNTUK ADMIN
-        // Dapatkan map urutan alur global
+        // 6. Query untuk "Monitor Lini Produksi"
         $stmt_all_alurs = $pdo->query("SELECT urutan, id_alur FROM master_alur");
-        $alur_map_by_urutan = $stmt_all_alurs->fetchAll(PDO::FETCH_KEY_PAIR); // [urutan => id_alur]
+        $alur_map_by_urutan = $stmt_all_alurs->fetchAll(PDO::FETCH_KEY_PAIR); 
 
         foreach ($admin_alurs as $alur) {
             $id_alur_current = $alur['id_alur'];
             $urutan_current = $alur['urutan'];
             
-            // 6a. Get Status (Sedang Dikerjakan) (QUERY DIPERBAIKI)
+            // 6a. Get Status (Sedang Dikerjakan) (UPDATE: Tambah pt.no_spk)
             $stmt_status = $pdo->prepare("
-                SELECT pt.id_target, mb.nama_barang, pt.nama_permintaan -- Ganti customer -> nama_permintaan
+                SELECT pt.id_target, pt.no_spk, mb.nama_barang, pt.nama_permintaan 
                 FROM target_alur_status tas
                 JOIN production_targets pt ON tas.id_target = pt.id_target
                 JOIN master_barang mb ON pt.id_barang = mb.id_barang
                 WHERE tas.id_alur = ? 
                   AND tas.status_pengerjaan = 'Sedang Dikerjakan'
-                  AND pt.status = 'ongoing' -- <-- INI BARIS TAMBAHANNYA
+                  AND pt.status = 'ongoing' 
                 LIMIT 2
             ");
             $stmt_status->execute([$id_alur_current]);
@@ -233,39 +196,34 @@ try {
             if (isset($alur_map_by_urutan[$urutan_previous])) {
                 $id_alur_previous = $alur_map_by_urutan[$urutan_previous];
                 
-                // Query BARU dengan Logika Diperbaiki
                 $stmt_antrian = $pdo->prepare("
                     SELECT COUNT(DISTINCT tas_curr.id_target)
                     FROM target_alur_status tas_curr
-                    LEFT JOIN target_alur_status tas_prev ON tas_curr.id_target = tas_prev.id_target AND tas_prev.id_alur = ? -- ID Alur Sebelumnya
-                    WHERE tas_curr.id_alur = ? -- ID Alur Saat Ini
-                      AND tas_curr.status_pengerjaan = 'Pending' -- Harus Pending di alur ini
-                      AND (tas_prev.id_alur IS NULL OR tas_prev.status_pengerjaan = 'Sedang Dikerjakan') -- Alur sebelumnya harus 'Sedang Dikerjakan' atau tidak ada (alur pertama)
+                    LEFT JOIN target_alur_status tas_prev ON tas_curr.id_target = tas_prev.id_target AND tas_prev.id_alur = ? 
+                    WHERE tas_curr.id_alur = ? 
+                      AND tas_curr.status_pengerjaan = 'Pending' 
+                      AND (tas_prev.id_alur IS NULL OR tas_prev.status_pengerjaan = 'Sedang Dikerjakan') 
                 ");
-                // Urutan parameter execute disesuaikan: [ID Alur Sebelumnya, ID Alur Saat Ini]
                 $stmt_antrian->execute([$id_alur_previous, $id_alur_current]);
                 $antrian_count = $stmt_antrian->fetchColumn();
             }
 
-            // ========== PERUBAHAN BARU: TAMBAHKAN id_alur ke array ==========
             $data_monitor[] = [
-                'id_alur' => $id_alur_current, // <-- TAMBAHAN BARIS INI
+                'id_alur' => $id_alur_current, 
                 'nama_alur' => $alur['nama_alur'],
-                'status' => $status_pengerjaan, // false atau array
+                'status' => $status_pengerjaan, 
                 'antrian' => $antrian_count
             ];
-            // ========== AKHIR PERUBAHAN BARU ==========
         }
     }
 
 } catch (PDOException $e) {
-    // Tampilkan error jika query gagal
     echo '<div class="alert alert-danger">Error mengambil data dashboard: ' . $e->getMessage() . '</div>';
-    // Hentikan eksekusi lebih lanjut jika perlu
 }
 ?>
 
 <style>
+/* ... (Gunakan Style CSS dari dashboard.php sebelumnya) ... */
 :root {
     /* Modern Color Palette - Ramah di Segala Pencahayaan */
     --primary-color: #2c3e50;
@@ -1247,6 +1205,9 @@ body {
                                         <a href="alur_produksi.php?id_target=<?php echo $item['id_target']; ?>">
                                             <?php echo htmlspecialchars($item['nama_barang']); ?>
                                         </a>
+                                        <div class="text-muted small">
+                                            <i class="fas fa-hashtag me-1"></i>SPK: <?php echo htmlspecialchars($item['no_spk'] ?? '-'); ?>
+                                        </div>
                                         <div class="text-muted">
                                             <?php echo htmlspecialchars($item['nama_permintaan']); ?>
                                         </div>
@@ -1293,6 +1254,9 @@ body {
                                         <a href="alur_produksi.php?id_target=<?php echo $item['id_target']; ?>">
                                             <?php echo htmlspecialchars($item['nama_barang']); ?>
                                         </a>
+                                        <div class="text-muted small">
+                                            <i class="fas fa-hashtag me-1"></i>SPK: <?php echo htmlspecialchars($item['no_spk'] ?? '-'); ?>
+                                        </div>
                                         <div class="text-muted">
                                             <?php echo htmlspecialchars($item['nama_permintaan']); ?>
                                         </div>
@@ -1340,7 +1304,6 @@ body {
                                     <div class="monitor-item-title">
                                         <?php echo htmlspecialchars($monitor['nama_alur']); ?>
                                     </div>
-                                    <!-- ========== PERUBAHAN BARU: ANTRIAN MENJADI LINK YANG BISA DIKLIK ========== -->
                                     <a href="#" 
                                        class="monitor-item-queue <?php echo $monitor['antrian'] > 5 ? 'queue-high' : 'queue-low'; ?> text-decoration-none monitor-queue-clickable" 
                                        data-bs-toggle="modal" 
@@ -1351,11 +1314,10 @@ body {
                                         <i class="fas fa-layer-group me-1"></i>
                                         <?php echo $monitor['antrian']; ?> Antrian
                                         
-                                        <?php if ($monitor['antrian'] > 0): // Tampilkan ikon jika ada antrian ?>
+                                        <?php if ($monitor['antrian'] > 0): ?>
                                             <i class="fas fa-search-plus ms-1" style="opacity: 0.75;"></i>
                                         <?php endif; ?>
                                     </a>
-                                    <!-- ========== AKHIR PERUBAHAN BARU ========== -->
                                 </div>
                                 <div class="monitor-item-status">
                                     <?php if ($monitor['status']): ?>
@@ -1363,13 +1325,14 @@ body {
                                             <i class="fas fa-cogs fa-spin"></i>
                                         </span>
                                         <div class="status-text">
-    <span class="busy">Sedang Mengerjakan</span>
-    <div class="text-muted">
-        <a href="alur_produksi.php?id_target=<?php echo $monitor['status']['id_target']; ?>" class="text-reset text-decoration-none">
-            <?php echo htmlspecialchars($monitor['status']['nama_barang'] . ' (' . $monitor['status']['nama_permintaan'] . ')'); ?>
-        </a>
-    </div>
-</div>
+                                            <span class="busy">Sedang Mengerjakan</span>
+                                            <div class="text-muted">
+                                                <a href="alur_produksi.php?id_target=<?php echo $monitor['status']['id_target']; ?>" class="text-reset text-decoration-none">
+                                                    <?php echo htmlspecialchars($monitor['status']['nama_barang'] . ' (' . $monitor['status']['nama_permintaan'] . ')'); ?>
+                                                </a>
+                                                <br><small><i class="fas fa-hashtag me-1"></i>SPK: <?php echo htmlspecialchars($monitor['status']['no_spk'] ?? '-'); ?></small>
+                                            </div>
+                                        </div>
                                     <?php else: ?>
                                         <span class="status-icon idle">
                                             <i class="fas fa-power-off"></i>
@@ -1388,7 +1351,6 @@ body {
     </div>
 </div>
 
-<!-- Modal untuk Targets (existing) -->
 <div class="modal fade" id="targetsModal" tabindex="-1" aria-labelledby="targetsModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
@@ -1413,7 +1375,6 @@ body {
     </div>
 </div>
 
-<!-- Modal untuk Deadline Warning (existing) -->
 <div class="modal fade" id="deadlineModal" tabindex="-1" aria-labelledby="deadlineModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
@@ -1434,7 +1395,6 @@ body {
     </div>
 </div>
 
-<!-- ========== PERUBAHAN BARU: MODAL BARU UNTUK ANTRIAN ========== -->
 <div class="modal fade" id="antrianModal" tabindex="-1" aria-labelledby="antrianModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
@@ -1458,7 +1418,6 @@ body {
         </div>
     </div>
 </div>
-<!-- ========== AKHIR PERUBAHAN BARU ========== -->
 
 <button class="back-to-top" id="backToTop" aria-label="Kembali ke atas">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1.4rem" height="1.4rem" fill="currentColor">
@@ -1490,11 +1449,9 @@ document.addEventListener('DOMContentLoaded', function() {
         card.addEventListener('click', function() {
             const type = this.getAttribute('data-type');
             
-            // Reset header classes
             modalHeader.classList.remove('modal-header-danger');
             modalHeader.classList.remove('modal-header-warning');
 
-            // Set modal title with icon
             let titleHtml = '';
             if(type === 'ongoing') {
                 titleHtml = '<i class="fas fa-tasks me-2"></i>Daftar Target Produksi Berjalan (Area Anda)';
@@ -1512,7 +1469,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             modalTitle.innerHTML = titleHtml;
 
-            // Show loading spinner
             modalBody.innerHTML = `
                 <div class="text-center p-5">
                     <div class="spinner-border" role="status">
@@ -1522,12 +1478,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
 
-            // Fetch table data using AJAX
             fetch(`api_get_targets.php?type=${type}`)
                 .then(response => response.text())
                 .then(data => {
                     modalBody.innerHTML = data;
-                    // Initialize DataTables if available
                     if (window.jQuery && window.jQuery.fn.DataTable) {
                         $('#targetsTable').DataTable({
                             responsive: true,
@@ -1551,7 +1505,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ============================================
-    // || HANDLER BARU UNTUK MODAL ANTRIAN ||
+    // || HANDLER MODAL ANTRIAN ||
     // ============================================
     const antrianLinks = document.querySelectorAll('.monitor-queue-clickable');
     const antrianModalBody = document.querySelector('#antrianModalBody');
@@ -1564,14 +1518,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const idAlur = this.getAttribute('data-id-alur');
             const namaAlur = this.getAttribute('data-nama-alur');
-            // Ambil angka dari teks "X Antrian"
             const antrianCountText = this.innerText.trim().match(/^(\d+)/);
             const antrianCount = antrianCountText ? parseInt(antrianCountText[1]) : 0;
 
-            // Set judul modal
             antrianModalTitle.innerHTML = `<i class="fas fa-layer-group me-2"></i>Daftar Antrian: ${namaAlur}`;
 
-            // Jika tidak ada antrian, tampilkan pesan dan jangan fetch
             if (antrianCount === 0) {
                 antrianModalBody.innerHTML = `
                     <div class="card-body-placeholder" style="min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -1579,11 +1530,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         <p class="text-muted mb-0">Tidak ada antrian di lini produksi ini.</p>
                     </div>
                 `;
-                antrianModalInstance.show(); // Tetap tampilkan modal
-                return; // Hentikan proses
+                antrianModalInstance.show(); 
+                return;
             }
 
-            // Tampilkan loading spinner
             antrianModalBody.innerHTML = `
                 <div class="text-center p-5">
                     <div class="spinner-border" role="status">
@@ -1594,8 +1544,6 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             antrianModalInstance.show();
 
-            // Fetch data ke API baru
-            // Pastikan Anda membuat file 'api_get_antrian.php'
             fetch(`api_get_antrian.php?id_alur=${idAlur}`)
                 .then(response => {
                     if (!response.ok) {
@@ -1605,15 +1553,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(data => {
                     antrianModalBody.innerHTML = data;
-                    // Inisialisasi DataTables jika tabel ada
-                    const antrianTable = document.querySelector('#antrianTable');
-                    if (antrianTable && window.jQuery && window.jQuery.fn.DataTable) {
+                    if (window.jQuery && window.jQuery.fn.DataTable) {
                         if ($.fn.DataTable.isDataTable('#antrianTable')) {
                             $('#antrianTable').DataTable().destroy();
                         }
                         $('#antrianTable').DataTable({
                             responsive: true,
-                            order: [[0, 'desc']], // Urutkan berdasarkan prioritas (kolom pertama)
+                            order: [[0, 'desc']],
                             "language": {
                                 "url": "https://cdn.datatables.net/plug-ins/1.10.25/i18n/Indonesian.json"
                             }
@@ -1624,26 +1570,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     antrianModalBody.innerHTML = `
                         <div class="alert alert-danger d-flex align-items-center m-3">
                             <i class="fas fa-exclamation-triangle me-2"></i>
-                            <div>Gagal memuat data. Pastikan file 'api_get_antrian.php' ada di folder yang sama dengan 'api_get_targets.php'.</div>
+                            <div>Gagal memuat data. Pastikan file 'api_get_antrian.php' ada di folder yang sama.</div>
                         </div>
                     `;
                     console.error('Error:', error);
                 });
         });
     });
-    // ============================================
-    // || AKHIR HANDLER MODAL ANTRIAN ||
-    // ============================================
-
-    // ============================================
-    // HANDLER
 
     // ============================================
     // DEADLINE POP-UP LOGIC
     // ============================================
     function checkDeadlineTargets() {
         if (!deadlineTargetsData || deadlineTargetsData.length === 0) {
-            return; // No data, don't show modal
+            return; 
         }
 
         const deadlineModal = new bootstrap.Modal(document.getElementById('deadlineModal'));
@@ -1661,13 +1601,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 badgeClass = 'bg-info text-dark';
             }
             
+            // UPDATE: Menambahkan SPK di popup deadline
             listHtml += `
                 <li class="list-group-item d-flex justify-content-between align-items-center position-relative">
                     <div>
                         <strong>${target.nama_barang}</strong> (${target.nama_permintaan})
                         <br>
                         <small class="text-muted">
-                            ID: ${target.id_target} | 
+                            <i class="fas fa-hashtag"></i> SPK: ${target.no_spk || '-'} |
                             Deadline: ${new Date(target.tanggal_selesai).toLocaleDateString('id-ID', {
                                 day: '2-digit', 
                                 month: 'long', 
@@ -1689,10 +1630,7 @@ document.addEventListener('DOMContentLoaded', function() {
         listHtml += '</ul>';
         deadlineModalBody.innerHTML = listHtml;
         
-        // Add confirmation listeners
         addDeadlineModalListeners();
-        
-        // Show modal
         deadlineModal.show();
     }
 
@@ -1704,7 +1642,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const targetId = link.getAttribute('data-id');
                 const targetName = link.getAttribute('data-name');
                 
-                // Confirmation
                 if (confirm(`Anda akan dialihkan ke halaman detail untuk target:\n\n${targetName}\n\nLanjutkan?`)) {
                     window.location.href = `detail_barang.php?id=${targetId}`;
                 }
@@ -1712,12 +1649,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Call deadline pop-up function
     checkDeadlineTargets();
 
-    // ============================================
-    // RIPPLE EFFECT ON CARDS
-    // ============================================
     const statsCards = document.querySelectorAll('.stats-card');
     
     statsCards.forEach(card => {
@@ -1740,12 +1673,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // ============================================
-    // BACK TO TOP BUTTON
-    // ============================================
     const backToTopBtn = document.getElementById('backToTop');
     
-    // Show/hide button based on scroll position
     window.addEventListener('scroll', function() {
         if (window.pageYOffset > 300) {
             backToTopBtn.classList.add('show');
@@ -1754,7 +1683,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Smooth scroll to top
     backToTopBtn.addEventListener('click', function() {
         window.scrollTo({
             top: 0,
@@ -1762,9 +1690,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // ============================================
-    // SMOOTH SCROLL FOR ANCHOR LINKS
-    // ============================================
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
             const href = this.getAttribute('href');
@@ -1777,16 +1702,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // ======================================================================
-// ||     JAVASCRIPT UNTUK FILTER TANGGAL DI MODAL "TERAKHIR INPUT"    ||
-// ======================================================================
-// Deskripsi: Mengelola filter tanggal dan refresh data di modal targets
-// ======================================================================
-
 (function() {
     'use strict';
 
-    // ==================== KONFIGURASI ====================
     const CONFIG = {
         type: 'terakhir_input',
         apiEndpoint: 'api_get_targets.php',
@@ -1801,11 +1719,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // ==================== FUNGSI HELPER ====================
-    
-    /**
-     * Menampilkan loading spinner di modal
-     */
     function showLoadingSpinner() {
         $(CONFIG.modalSelector).html(`
             <div class="d-flex justify-content-center align-items-center my-5">
@@ -1816,39 +1729,24 @@ document.addEventListener('DOMContentLoaded', function() {
         `);
     }
 
-    /**
-     * Inisialisasi DataTable dengan konfigurasi standar
-     */
     function initializeDataTable() {
         if (window.jQuery && window.jQuery.fn.DataTable) {
-            // Hancurkan DataTable yang ada jika ada
             if ($.fn.DataTable.isDataTable(CONFIG.tableSelector)) {
                 $(CONFIG.tableSelector).DataTable().destroy();
             }
-            
-            // Inisialisasi DataTable baru
             $(CONFIG.tableSelector).DataTable(CONFIG.dataTableConfig);
         }
     }
 
-    /**
-     * Memuat data ke modal dengan parameter opsional
-     * @param {string} startDate - Tanggal mulai (opsional)
-     * @param {string} endDate - Tanggal selesai (opsional)
-     */
     function loadModalData(startDate = '', endDate = '') {
-        // Bangun URL API
         let apiUrl = `${CONFIG.apiEndpoint}?type=${CONFIG.type}`;
         
-        // Tambahkan parameter tanggal jika ada
         if (startDate && endDate) {
             apiUrl += `&start_date=${startDate}&end_date=${endDate}`;
         }
 
-        // Tampilkan loading
         showLoadingSpinner();
 
-        // Muat data dan inisialisasi DataTable
         $(CONFIG.modalSelector).load(apiUrl, function(response, status, xhr) {
             if (status === "error") {
                 $(CONFIG.modalSelector).html(`
@@ -1860,24 +1758,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Inisialisasi DataTable setelah konten dimuat
             initializeDataTable();
         });
     }
 
-    /**
-     * Validasi input tanggal
-     * @param {string} startDate - Tanggal mulai
-     * @param {string} endDate - Tanggal selesai
-     * @returns {boolean} - True jika valid
-     */
     function validateDateRange(startDate, endDate) {
         if (!startDate || !endDate) {
             alert('⚠️ Silakan isi Tanggal Mulai dan Tanggal Selesai.');
             return false;
         }
 
-        // Validasi apakah tanggal mulai <= tanggal selesai
         if (new Date(startDate) > new Date(endDate)) {
             alert('⚠️ Tanggal Mulai tidak boleh lebih besar dari Tanggal Selesai.');
             return false;
@@ -1886,44 +1776,26 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
 
-    // ==================== EVENT HANDLERS ====================
-
-    /**
-     * Handler untuk submit form filter
-     */
     $(document).on('submit', '#filterFormModal', function(e) {
         e.preventDefault();
 
-        // Ambil nilai tanggal dari input
         const startDate = $('#startDateModal').val();
         const endDate = $('#endDateModal').val();
 
-        // Validasi input
         if (!validateDateRange(startDate, endDate)) {
             return;
         }
 
-        // Muat data dengan filter tanggal
         loadModalData(startDate, endDate);
     });
 
-    /**
-     * Handler untuk tombol reset
-     */
     $(document).on('click', '#btnResetModal', function() {
-        // Reset form input
         $('#startDateModal').val('');
         $('#endDateModal').val('');
-
-        // Muat data tanpa filter (data default)
         loadModalData();
     });
 
 })();
-
-// ======================================================================
-// ||                         END OF SCRIPT                            ||
-// ======================================================================
 
 });
 </script>

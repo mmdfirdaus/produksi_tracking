@@ -17,7 +17,6 @@ $params = [];
 
 // Fungsi untuk mencetak baris tabel
 function print_table_row($target, $type) {
-    // ===== PERUBAHAN DI SINI =====
     // Tentukan URL detail berdasarkan role (user)
     $detail_url = "";
     if ($type === 'selesai') {
@@ -27,10 +26,11 @@ function print_table_row($target, $type) {
         // Untuk 'ongoing', 'prioritas', dll, arahkan ke material.php (untuk input/detail)
         $detail_url = "management_produksi/material.php?id_target=" . htmlspecialchars($target['id_target']);
     }
-    // =============================
 
     echo "<tr>";
     echo "<td>" . htmlspecialchars($target['id_target']) . "</td>";
+    // UPDATE: Cetak Kolom No SPK
+    echo "<td><span class='badge bg-secondary'>" . htmlspecialchars($target['no_spk'] ?? '-') . "</span></td>";
     echo "<td><a href='{$detail_url}'>" . htmlspecialchars($target['nama_barang']) . "</a></td>";
     echo "<td>" . htmlspecialchars($target['nama_permintaan']) . "</td>";
     echo "<td>" . htmlspecialchars($target['jumlah_unit']) . "</td>";
@@ -58,71 +58,73 @@ function print_table_row($target, $type) {
 // Tentukan query berdasarkan tipe
 switch ($type) {
     case 'ongoing':
-        $sql = "SELECT pt.id_target, mb.nama_barang, pt.nama_permintaan, pt.jumlah_unit, pt.status
+        // UPDATE: Tambah pt.no_spk
+        $sql = "SELECT pt.id_target, pt.no_spk, mb.nama_barang, pt.nama_permintaan, pt.jumlah_unit, pt.status
                 FROM production_targets pt
                 JOIN master_barang mb ON pt.id_barang = mb.id_barang
                 WHERE pt.status = 'ongoing' AND pt.is_active = 1
                 ORDER BY pt.created_at DESC";
-        $columns = ["ID Target", "Nama Barang", "Nama Permintaan", "Jumlah", "Status"];
+        // UPDATE: Tambah Header No SPK
+        $columns = ["ID Target", "No SPK", "Nama Barang", "Nama Permintaan", "Jumlah", "Status"];
         break;
 
     case 'selesai':
-        $sql = "SELECT pt.id_target, mb.nama_barang, pt.nama_permintaan, pt.jumlah_unit, pt.status, pt.tanggal_selesai
+        // UPDATE: Tambah pt.no_spk
+        $sql = "SELECT pt.id_target, pt.no_spk, mb.nama_barang, pt.nama_permintaan, pt.jumlah_unit, pt.status, pt.tanggal_selesai
                 FROM production_targets pt
                 JOIN master_barang mb ON pt.id_barang = mb.id_barang
                 WHERE pt.status = 'Selesai'
                 ORDER BY pt.tanggal_selesai DESC";
-        $columns = ["ID Target", "Nama Barang", "Nama Permintaan", "Jumlah", "Status"];
+        // UPDATE: Tambah Header No SPK
+        $columns = ["ID Target", "No SPK", "Nama Barang", "Nama Permintaan", "Jumlah", "Status"];
         break;
 
     case 'prioritas':
-        $sql = "SELECT pt.id_target, mb.nama_barang, pt.nama_permintaan, pt.jumlah_unit, pt.status, pt.priority_deadline
+        // UPDATE: Tambah pt.no_spk
+        $sql = "SELECT pt.id_target, pt.no_spk, mb.nama_barang, pt.nama_permintaan, pt.jumlah_unit, pt.status, pt.priority_deadline
                 FROM production_targets pt
                 JOIN master_barang mb ON pt.id_barang = mb.id_barang
                 WHERE (pt.prioritas = 'Prioritas' OR pt.is_priority = 1)
                 AND pt.status = 'ongoing' AND pt.is_active = 1
                 ORDER BY pt.priority_deadline ASC";
-        $columns = ["ID Target", "Nama Barang", "Nama Permintaan", "Jumlah", "Deadline"];
+        // UPDATE: Tambah Header No SPK
+        $columns = ["ID Target", "No SPK", "Nama Barang", "Nama Permintaan", "Jumlah", "Deadline"];
         break;
 
     case 'terakhir_input':
-    // [DIUBAH] Query diubah untuk menampilkan target yang terakhir diupdate, bukan setiap laporan
+    // UPDATE: Tambah pt.no_spk
     $sql = "SELECT
                 pt.id_target,
+                pt.no_spk,
                 mb.nama_barang,
                 pt.nama_permintaan,
                 pt.jumlah_unit,
                 lh.created_at,
                 ma.nama_alur
             FROM (
-                -- 1. Temukan id_laporan (PK) terbaru untuk setiap id_target
                 SELECT 
                     tm.id_target,
                     MAX(lh.id_laporan) AS max_id_laporan
                 FROM laporan_harian lh
                 JOIN target_material tm ON lh.id_material = tm.id_material
-                -- PERUBAHAN BARU: Join ke production_targets di dalam subquery
                 JOIN production_targets pt_inner ON tm.id_target = pt_inner.id_target
-                WHERE pt_inner.status = 'ongoing' -- Filter target 'ongoing' di sini
+                WHERE pt_inner.status = 'ongoing' 
                 GROUP BY tm.id_target
             ) AS latest_reports
-            -- 2. Join kembali untuk mendapatkan detail laporan terbaru itu
             JOIN laporan_harian lh ON lh.id_laporan = latest_reports.max_id_laporan
-            -- 3. Join untuk mendapatkan detail target, barang, dan alur
             JOIN target_material tm ON lh.id_material = tm.id_material
             JOIN production_targets pt ON tm.id_target = pt.id_target
             JOIN master_barang mb ON pt.id_barang = mb.id_barang
             JOIN master_alur ma ON tm.id_alur = ma.id_alur
-            -- Filter 'ongoing' tidak diperlukan lagi di sini karena sudah di subquery
-            -- 4. Urutkan berdasarkan waktu laporan terbaru
             ORDER BY lh.created_at DESC";
     
-    // Nama kolom diubah agar lebih jelas
-    $columns = ["ID Target", "Nama Barang", "Nama Permintaan", "Jumlah Unit", "Alur (Terbaru)", "Waktu Input (Terbaru)"];
+    // UPDATE: Tambah Header No SPK
+    $columns = ["ID Target", "No SPK", "Nama Barang", "Nama Permintaan", "Jumlah Unit", "Alur (Terbaru)", "Waktu Input (Terbaru)"];
     break;
 
     case 'terhenti':
-        $sql = "SELECT pt.id_target, mb.nama_barang, pt.nama_permintaan, pt.jumlah_unit,
+        // UPDATE: Tambah pt.no_spk
+        $sql = "SELECT pt.id_target, pt.no_spk, mb.nama_barang, pt.nama_permintaan, pt.jumlah_unit,
                        COALESCE(MAX(lh.created_at), pt.created_at) AS last_report_time,
                        DATEDIFF(NOW(), COALESCE(MAX(lh.created_at), pt.created_at)) as days_stalled
                 FROM production_targets pt
@@ -130,10 +132,11 @@ switch ($type) {
                 LEFT JOIN target_material tm ON pt.id_target = tm.id_target
                 LEFT JOIN laporan_harian lh ON tm.id_material = lh.id_material
                 WHERE pt.status = 'ongoing' AND pt.is_active = 1
-                GROUP BY pt.id_target, mb.nama_barang, pt.nama_permintaan, pt.jumlah_unit, pt.created_at
+                GROUP BY pt.id_target, pt.no_spk, mb.nama_barang, pt.nama_permintaan, pt.jumlah_unit, pt.created_at
                 HAVING days_stalled > 1
                 ORDER BY days_stalled DESC, last_report_time ASC";
-        $columns = ["ID Target", "Nama Barang", "Nama Permintaan", "Jumlah", "Terhenti (Hari)", "Input Terakhir"];
+        // UPDATE: Tambah Header No SPK
+        $columns = ["ID Target", "No SPK", "Nama Barang", "Nama Permintaan", "Jumlah", "Terhenti (Hari)", "Input Terakhir"];
         break;
 
     default:

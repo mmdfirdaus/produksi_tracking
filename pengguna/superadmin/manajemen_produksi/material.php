@@ -1564,7 +1564,6 @@ try {
                 </p>
                 
                 <div class="status-options">
-                    <!-- Option: Sedang Dikerjakan -->
                     <div class="modal-status-option status-option-active" 
                          data-status="Sedang Dikerjakan"
                          onclick="selectStatus(this)">
@@ -1587,7 +1586,6 @@ try {
                         </div>
                     </div>
                     
-                    <!-- Option: Pending -->
                     <div class="modal-status-option status-option-pending" 
                          data-status="Pending"
                          onclick="selectStatus(this)">
@@ -1635,6 +1633,88 @@ try {
 <script>
 $(document).ready(function() {
     
+    // --- PERBAIKAN FITUR: Deteksi Perubahan Data Input (Dirty Form) yang Lebih Cerdas ---
+    let formIsDirty = false;
+
+    // Fungsi untuk memeriksa ulang seluruh input
+    // Jika semua input kosong atau bernilai 0, maka form dianggap "bersih" (tidak dirty)
+    function updateDirtyState() {
+        let hasData = false;
+        const inputFields = document.querySelectorAll('input[type="number"][name^="laporan"]');
+        
+        for (let input of inputFields) {
+            // Cek jika value ada dan lebih dari 0
+            if (input.value !== '' && parseFloat(input.value) > 0) {
+                hasData = true;
+                break; // Cukup satu input terisi untuk dianggap dirty
+            }
+        }
+        formIsDirty = hasData;
+    }
+
+    // Terapkan event listener ke setiap input number di tabel
+    const inputFields = document.querySelectorAll('input[type="number"][name^="laporan"]');
+    inputFields.forEach(input => {
+        // Gunakan 'input' event agar real-time saat mengetik/menghapus
+        input.addEventListener('input', updateDirtyState);
+        // 'change' event untuk cover kasus seperti paste lewat mouse atau autofill
+        input.addEventListener('change', updateDirtyState);
+    });
+
+    // Cegah navigasi jika form kotor (belum disimpan)
+    document.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Kecualikan link yang memang untuk aksi (seperti hapus, download, atau modal trigger)
+            if (formIsDirty && 
+                !this.classList.contains('btn-danger') && 
+                !this.hasAttribute('data-bs-toggle') && 
+                this.getAttribute('href') !== '#') {
+                
+                e.preventDefault(); // Batalkan navigasi
+                const targetUrl = this.getAttribute('href');
+
+                Swal.fire({
+                    title: 'Data Belum Disimpan!',
+                    text: "Anda memiliki input laporan harian yang belum disimpan. Jika Anda meninggalkan halaman ini, data tersebut akan hilang. Yakin ingin keluar?",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#f5576c',
+                    cancelButtonColor: '#667eea',
+                    confirmButtonText: 'Ya, Keluar',
+                    cancelButtonText: 'Batal, Saya Simpan Dulu'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        formIsDirty = false; // Reset flag agar bisa navigasi
+                        window.location.href = targetUrl;
+                    }
+                });
+            }
+        });
+    });
+    // --- AKHIR FITUR ---
+
+    // --- FITUR: Prompt Ubah Status Setelah Sukses ---
+    <?php if (isset($_GET['status']) && $_GET['status'] == 'success' && $header_info['status_pengerjaan'] == 'Sedang Dikerjakan'): ?>
+        setTimeout(() => {
+            Swal.fire({
+                title: 'Laporan Tersimpan!',
+                text: "Anda telah berhasil menyimpan laporan harian. Apakah Anda ingin mengubah status pengerjaan (misalnya menjadi Pending) sekarang?",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#667eea',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Ya, Ubah Status',
+                cancelButtonText: 'Tidak, Tetap Lanjut'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var myModal = new bootstrap.Modal(document.getElementById('ubahStatusModal'));
+                    myModal.show();
+                }
+            });
+        }, 1000); // Muncul sedikit setelah alert sukses
+    <?php endif; ?>
+    // --- AKHIR FITUR ---
+
     const accordionElement = document.getElementById('actionContent');
     let isSelect2Initialized = false;
 
@@ -1759,6 +1839,9 @@ $(document).ready(function() {
     const tombolKonfirmasi = document.getElementById('tombolKonfirmasiSimpan');
     if (tombolKonfirmasi) {
         tombolKonfirmasi.addEventListener('click', function() {
+            // Reset dirty form flag karena kita memang mau submit
+            formIsDirty = false;
+
             // Tampilkan loading state di tombol utama
             const submitBtn = form.querySelector('button[type="submit"]');
             submitBtn.innerHTML = '<span class="loading-spinner me-2"></span>Menyimpan...';
